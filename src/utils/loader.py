@@ -93,10 +93,14 @@ def load_libero_demo(path: str, demo_idx: int = 0) -> dict:
     # Gripper scalar: abs-mean removes the symmetric sign flip between fingers
     gripper_state: np.ndarray = np.abs(gripper_states).mean(axis=1)
 
+    # Combined signal for GripperFallbackExtractor: col 0 = gripper_state, cols 1:4 = ee_vel
+    gripper_vel: np.ndarray = np.column_stack([gripper_state, ee_vel])
+
     return {
         "ee_pos":        ee_pos,
         "ee_vel":        ee_vel,
         "gripper_state": gripper_state,
+        "gripper_vel":   gripper_vel,
         "joint_states":  joint_states,
         "actions":       actions,
         "rewards":       rewards,

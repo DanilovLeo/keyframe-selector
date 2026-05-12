@@ -28,7 +28,14 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.extractors import AWEExtractor, GripperStateExtractor, UniformExtractor, VelocityZeroExtractor
+from src.extractors import (
+    AWEExtractor,
+    GripperFallbackExtractor,
+    GripperStateExtractor,
+    RandomExtractor,
+    UniformExtractor,
+    VelocityZeroExtractor,
+)
 from src.utils.loader import list_demos, load_libero_demo
 
 DEFAULT_DATASET_DIR = (
@@ -38,10 +45,12 @@ DEFAULT_OPENVLA_DIR = "~/keyframe_selection/openvla"
 DEFAULT_RUN_ROOT = "~/keyframe_selection/runs"
 
 EXTRACTORS = [
-    ("uniform_10",       UniformExtractor(n_keyframes=10),                 "ee_pos"),
-    ("velocity_p25_d5",  VelocityZeroExtractor(percentile=25, min_dist=5), "ee_vel"),
-    ("gripper_d5",       GripperStateExtractor(min_dist=5),                "gripper_state"),
-    ("awe_eps0.01",      AWEExtractor(error_threshold=0.01),               "ee_pos"),
+    ("uniform_10",            UniformExtractor(n_keyframes=10),                          "ee_pos"),
+    ("velocity_p25_d5",       VelocityZeroExtractor(percentile=25, min_dist=5),          "ee_vel"),
+    ("gripper_d5",            GripperStateExtractor(min_dist=5),                         "gripper_state"),
+    ("gripper_fallback_n8",   GripperFallbackExtractor(min_n=8, gripper_min_dist=5),     "gripper_vel"),
+    ("awe_eps0.01",           AWEExtractor(error_threshold=0.01),                        "ee_pos"),
+    ("random_10",             RandomExtractor(n_keyframes=10, seed=42),                  "ee_pos"),
 ]
 
 
@@ -96,6 +105,7 @@ def torchrun_cmd(
     extractor_name: str,
     run_root: Path,
     n_gpus: int,
+    wandb_entity: str,
     extra_tag: str = "",
 ) -> str:
     script = openvla_dir / "vla-scripts" / "finetune_libero.py"
@@ -107,6 +117,7 @@ def torchrun_cmd(
         f"    --task_filter \"{task_filter}\" \\\n"
         f"    --extractor_name {extractor_name} \\\n"
         f"    --run_root_dir {run_root} \\\n"
+        f"    --wandb_entity {wandb_entity} \\\n"
         f"    --batch_size 8 \\\n"
         f"    --max_steps 10000 \\\n"
         f"    --save_steps 2500 \\\n"
@@ -116,12 +127,14 @@ def torchrun_cmd(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task1",        default="black_bowl_from_table_center")
-    parser.add_argument("--task2",        default="black_bowl_next_to_the_plate_and_place")
-    parser.add_argument("--dataset_dir",  default=DEFAULT_DATASET_DIR)
-    parser.add_argument("--openvla_dir",  default=DEFAULT_OPENVLA_DIR)
-    parser.add_argument("--run_root_dir", default=DEFAULT_RUN_ROOT)
-    parser.add_argument("--n_gpus",       type=int, default=1)
+    parser.add_argument("--task1",          default="black_bowl_from_table_center")
+    parser.add_argument("--task2",          default="black_bowl_next_to_the_plate_and_place")
+    parser.add_argument("--dataset_dir",    default=DEFAULT_DATASET_DIR)
+    parser.add_argument("--openvla_dir",    default=DEFAULT_OPENVLA_DIR)
+    parser.add_argument("--run_root_dir",   default=DEFAULT_RUN_ROOT)
+    parser.add_argument("--n_gpus",         type=int, default=1)
+    parser.add_argument("--wandb_entity",   required=True,
+                        help="Your W&B username or team name (e.g. 'jsmith')")
     args = parser.parse_args()
 
     dataset_dir = Path(args.dataset_dir).expanduser()
@@ -152,20 +165,32 @@ def main():
     print("\n" + "=" * 70)
     print("  TRAINING COMMANDS")
     print("=" * 70)
+    w = args.wandb_entity
+
     print("\n[Condition A]  uniform_10 keyframes")
     print("-" * 70)
     print(torchrun_cmd(openvla_dir, dataset_dir, combined_filter, "uniform",
-                       run_root, args.n_gpus, extra_tag="uniform10_2task"))
+                       run_root, args.n_gpus, w, extra_tag="uniform10_2task"))
 
     print("\n[Condition B]  velocity_zero p25 keyframes")
     print("-" * 70)
     print(torchrun_cmd(openvla_dir, dataset_dir, combined_filter, "velocity_zero",
-                       run_root, args.n_gpus, extra_tag="velp25_2task"))
+                       run_root, args.n_gpus, w, extra_tag="velp25_2task"))
 
-    print("\n[Optional C]  awe_eps0.01 keyframes")
+    print("\n[Condition C]  awe_eps0.01 keyframes")
     print("-" * 70)
     print(torchrun_cmd(openvla_dir, dataset_dir, combined_filter, "awe",
-                       run_root, args.n_gpus, extra_tag="awe001_2task"))
+                       run_root, args.n_gpus, w, extra_tag="awe001_2task"))
+
+    print("\n[Condition D]  gripper_fallback min_n=8 keyframes")
+    print("-" * 70)
+    print(torchrun_cmd(openvla_dir, dataset_dir, combined_filter, "gripper_fallback",
+                       run_root, args.n_gpus, w, extra_tag="gripfb_2task"))
+
+    print("\n[Baseline R]  random_10 keyframes (matched-N control for uniform)")
+    print("-" * 70)
+    print(torchrun_cmd(openvla_dir, dataset_dir, combined_filter, "random",
+                       run_root, args.n_gpus, w, extra_tag="random10_2task"))
 
     print("\nRun each command on a GPU machine from the openvla/ directory.")
     print("Checkpoints and dataset_statistics.json will be saved under --run_root_dir.")

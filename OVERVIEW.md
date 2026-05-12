@@ -34,7 +34,7 @@ Keyframe selection methods
 
 This project implements and compares the **signal-based heuristic** tier, which is the most portable and architecture-agnostic layer of the taxonomy.
 
-## The 4 Extractors
+## The Extractors
 
 All are implemented in `src/extractors/` and share the `KeyframeExtractor` interface: accept a trajectory array, return sorted integer indices always including frame 0 and T-1.
 
@@ -43,7 +43,11 @@ All are implemented in `src/extractors/` and share the `KeyframeExtractor` inter
 | `UniformExtractor` | N evenly spaced frames | any | AWE (CoRL 2023), Wen 2021 |
 | `VelocityZeroExtractor` | Frames where EE speed < adaptive p25 threshold | `ee_vel` | NoTVLA (2025), RoboPrompt (2024), VLA-RL (2025), SeeDo (2024) |
 | `GripperStateExtractor` | Frames at gripper open↔close transitions | `gripper_state` | VLA-Thinker (2026), RoboPrompt (2024) |
+| `GripperFallbackExtractor` | Gripper transitions + velocity near-zero fill to reach min_n | `gripper_vel` | — |
 | `AWEExtractor` | Minimal waypoints for ε-accurate linear reconstruction of EE path | `ee_pos` | Zhao et al., CoRL 2023 (arXiv:2307.14326 ✅) |
+| `RandomExtractor` | N uniformly random frames (matched-N control baseline) | any | — |
+
+`gripper_vel` is a (T, 4) field added to the loader: col 0 = gripper scalar, cols 1:4 = ee_vel. `GripperFallbackExtractor` uses this to pad gripper-only selections (typically ~3 frames) up to `min_n=8` using the slowest-speed interior frames, fixing the approach-phase gap identified in the consistency check.
 
 ## Data
 
@@ -53,6 +57,7 @@ Each demo stores:
 - `ee_pos` (T×3) — end-effector XYZ in metres
 - `ee_vel` (T×3) — computed via finite differences (not stored natively in LIBERO)
 - `gripper_state` (T,) — abs mean finger qpos; ~0.04 = open, ~0.007 = closed
+- `gripper_vel` (T×4) — `[gripper_state | ee_vel]` combined field for `GripperFallbackExtractor`
 - `actions` (T×7) — delta actions `[dx, dy, dz, droll, dpitch, dyaw, gripper∈{-1,+1}]`
 - `images` (T×128×128×3) — agentview RGB frames
 
@@ -60,7 +65,7 @@ Total: 400 demos × ~115–150 frames each.
 
 ## Consistency Results
 
-Ran all 4 extractors on all 400 demos (8 tasks × 50 demos). Results are stable across tasks.
+Ran all original extractors on all 400 demos (8 tasks × 50 demos). Results are stable across tasks.
 
 | Extractor | avg keyframes | CV (std/mean) ↓ | avg compression ratio |
 |---|---|---|---|
@@ -69,7 +74,7 @@ Ran all 4 extractors on all 400 demos (8 tasks × 50 demos). Results are stable 
 | `gripper_d5` | **3.9** | 0.170 | 3.3% |
 | `awe_eps0.01` | 14.3 | 0.124 | 12.0% |
 
-Notable: gripper is the most aggressive extractor (~4 keyframes/demo) but also the most variable — it captures transitions only, missing the approach phase entirely on demos where the bowl is already grasped in an atypical way. Velocity and AWE are better-balanced for BC training.
+Notable: gripper is the most aggressive extractor (~4 keyframes/demo) but also the most variable — it captures transitions only, missing the approach phase entirely. This motivated `GripperFallbackExtractor` (min_n=8), which pads to the same count as velocity/uniform by filling with slow-speed frames. `RandomExtractor(n=10)` is now also available and included in `run_experiment.py` as the matched-N control for all conditions.
 
 Full per-task breakdown saved to `results/consistency_check.json`.
 
@@ -85,11 +90,27 @@ OpenVLA normally trains on RLDS/TFDS format. We bypass that with a direct HDF5 r
 
 **`openvla/vla-scripts/finetune_libero.py`** — training script
 - Drop-in replacement for `finetune.py`; same LoRA loop, same W&B logging
-- Extractor configured via CLI: `--extractor_name uniform | velocity_zero | gripper_state | awe`
+- Extractor configured via CLI: `--extractor_name uniform | velocity_zero | gripper_state | gripper_fallback | awe | random`
 - `--task_filter` is a comma-separated list of substrings to select a subset of tasks from `--hdf5_dir`
 
 **`keyframe-selector/scripts/run_experiment.py`** — experiment launcher
-- Takes two task name substrings, prints per-task consistency stats across all 4 extractors, emits ready-to-run `torchrun` commands for all three main conditions
+- Takes two task name substrings, prints per-task consistency stats across all 6 extractors, emits ready-to-run `torchrun` commands for conditions A–D plus the random baseline
+
+**`keyframe-selector/scripts/evaluate.py`** — rollout evaluation
+- Loads a merged OpenVLA checkpoint directory (must contain `dataset_statistics.json`)
+- Reads the BDDL file path and per-demo initial sim states directly from the task HDF5 file
+- Runs `--n_rollouts` episodes (default 50) via `OffScreenRenderEnv`; success = `done=True` from LIBERO's `_check_success()`
+- Settles the sim for 5 steps before each rollout to avoid physics transients
+- Saves JSON results to `run_dir/eval_results.json` by default
+
+Usage:
+```bash
+python scripts/evaluate.py \
+    --run_dir ~/keyframe_selection/runs/<checkpoint_dir> \
+    --hdf5_path ~/keyframe_selection/LIBERO/libero/datasets/libero_spatial/<task>_demo.hdf5 \
+    --libero_dir ~/keyframe_selection/LIBERO/libero \
+    --n_rollouts 50
+```
 
 ## Experiment Design
 
@@ -100,7 +121,8 @@ OpenVLA normally trains on RLDS/TFDS format. We bypass that with a direct HDF5 r
 | A — Uniform | `UniformExtractor(n=10)` | Standard baseline used in AWE, Wen 2021 |
 | B — Velocity | `VelocityZeroExtractor(p=25)` | Dominant heuristic in NoTVLA, RoboPrompt, VLA-RL |
 | C — AWE | `AWEExtractor(eps=0.01)` | Geometry-aware; most studied plug-in method |
-| D — Gripper | `GripperStateExtractor()` | Supplementary; may underfit due to low keyframe count |
+| D — Gripper+ | `GripperFallbackExtractor(min_n=8)` | Gripper transitions + velocity fill; fixes approach-phase gap |
+| R — Random | `RandomExtractor(n=10, seed=42)` | Matched-N control; all conditions should beat this |
 
 ### Compression ratio sweep
 
@@ -122,11 +144,8 @@ Run `python scripts/run_experiment.py` to get the exact `torchrun` commands.
 
 ## What's Next
 
-- **Training** — requires a GPU (finetune_libero.py asserts CUDA). Copy the `torchrun` commands from `run_experiment.py` to a GPU machine and run conditions A, B, C.
-- **Random baseline** — add `RandomExtractor(n)` to `src/extractors/` so every experiment run also trains a matched-N random-frame condition automatically.
-- **Evaluation loop** — write a rollout script that loads a checkpoint and runs 50 LIBERO episodes, returning success rate.
-- **Gripper extractor** — 4 keyframes/demo is likely too few for BC; consider a fallback that adds velocity-based frames between gripper transitions to bring CR closer to uniform's 8–10%.
-- **Compression sweep** — after the first 2-task experiment validates the pipeline, sweep AWE `eps` across all 8 tasks.
+- **Training** — requires a GPU (finetune_libero.py asserts CUDA). Run `python scripts/run_experiment.py` to get the exact `torchrun` commands for all conditions, then execute on the GPU machine.
+- **Compression sweep** — after the first 2-task experiment validates the pipeline, sweep AWE `eps ∈ {0.005, 0.01, 0.02, 0.05}` across all 8 tasks to produce a compression–performance curve.
 
 ## Literature
 

@@ -63,3 +63,69 @@ class GripperStateExtractor(KeyframeExtractor):
             selected.append(T - 1)
 
         return np.array(selected, dtype=int)
+
+
+class GripperFallbackExtractor(KeyframeExtractor):
+    """Gripper transitions padded with velocity near-zero frames.
+
+    Finds gripper open/close transitions first. If the total count is below
+    min_n, fills the remaining slots with the slowest (velocity near-zero)
+    frames from the gaps between transitions, bringing coverage closer to
+    the uniform/velocity extractors (~8-10 frames/demo).
+
+    Accepts the combined "gripper_vel" trajectory from load_libero_demo():
+        col 0   — gripper scalar (abs-mean finger qpos)
+        cols 1:4 — EE velocity (m/frame, finite-difference)
+
+    Based on the observation in the OVERVIEW that plain GripperStateExtractor
+    (~4 frames/demo) misses the approach phase entirely.
+    """
+
+    def __init__(self, min_n: int = 8, gripper_min_dist: int = 5) -> None:
+        """
+        Args:
+            min_n:            Target minimum number of keyframes. Gripper
+                              transitions are always included; velocity frames
+                              are added until this count is reached.
+            gripper_min_dist: Minimum frames between consecutive gripper
+                              transition keyframes (passed to inner extractor).
+        """
+        self._min_n = min_n
+        self._gripper_min_dist = gripper_min_dist
+        self._gripper = GripperStateExtractor(min_dist=gripper_min_dist)
+
+    @property
+    def name(self) -> str:
+        return f"gripper_fallback_n{self._min_n}"
+
+    def extract(self, trajectory: np.ndarray) -> np.ndarray:
+        """Select gripper-transition keyframes, padded with velocity frames.
+
+        Args:
+            trajectory: (T, 4) array — col 0 is gripper_state, cols 1:4 are
+                        ee_vel. Use traj_key="gripper_vel" with this extractor.
+
+        Returns:
+            Sorted integer array of keyframe indices including endpoints.
+        """
+        gripper = trajectory[:, 0]
+        ee_vel = trajectory[:, 1:4]
+        T = len(gripper)
+
+        kf_set = set(self._gripper.extract(gripper).tolist())
+
+        if len(kf_set) >= self._min_n:
+            return np.array(sorted(kf_set), dtype=int)
+
+        needed = self._min_n - len(kf_set)
+        speed = np.linalg.norm(ee_vel, axis=1)
+
+        # Fill from non-selected interior frames, slowest speed first
+        candidates = sorted(
+            (i for i in range(1, T - 1) if i not in kf_set),
+            key=lambda i: speed[i],
+        )
+        for i in candidates[:needed]:
+            kf_set.add(i)
+
+        return np.array(sorted(kf_set), dtype=int)
