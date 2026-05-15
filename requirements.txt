@@ -6,5 +6,6 @@ torch
 torchvision>=0.13
 pandas
 transformers
+timm
 open-clip-torch
 lerobot
