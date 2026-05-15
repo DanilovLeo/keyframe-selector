@@ -3,4 +3,8 @@ h5py
 matplotlib
 scipy
 torch
+torchvision>=0.13
 pandas
+transformers
+open-clip-torch
+lerobot

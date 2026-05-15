@@ -1,0 +1,338 @@
+{
+  "pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.10170556353812196,
+        "std_cr": 0.015884732598362643
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 7.8,
+        "std_kf": 1.5362291495737217,
+        "min_kf": 6,
+        "max_kf": 13,
+        "cv_kf": 0.19695245507355408,
+        "mean_cr": 0.0772436365320091,
+        "std_cr": 0.006620654394334519
+      },
+      "gripper_d5": {
+        "mean_kf": 4.06,
+        "std_kf": 0.7323933369440222,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.1803924475231582,
+        "mean_cr": 0.04051226569028391,
+        "std_cr": 0.00545249050707883
+      },
+      "awe_eps0.01": {
+        "mean_kf": 14.24,
+        "std_kf": 2.5263412279421007,
+        "min_kf": 11,
+        "max_kf": 22,
+        "cv_kf": 0.17741160308582168,
+        "mean_cr": 0.14122405630065052,
+        "std_cr": 0.009659040097261136
+      }
+    }
+  },
+  "pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.0859812105465095,
+        "std_cr": 0.008957174200116312
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 8.16,
+        "std_kf": 1.0650821564555477,
+        "min_kf": 6,
+        "max_kf": 11,
+        "cv_kf": 0.13052477407543478,
+        "mean_cr": 0.06931596059553916,
+        "std_cr": 0.004338473847549438
+      },
+      "gripper_d5": {
+        "mean_kf": 3.76,
+        "std_kf": 0.5851495535331117,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.1556248812588063,
+        "mean_cr": 0.03208416083529929,
+        "std_cr": 0.004431465814158439
+      },
+      "awe_eps0.01": {
+        "mean_kf": 13.06,
+        "std_kf": 1.42,
+        "min_kf": 11,
+        "max_kf": 18,
+        "cv_kf": 0.10872894333843797,
+        "mean_cr": 0.1114891598342333,
+        "std_cr": 0.009987900751957745
+      }
+    }
+  },
+  "pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.06743253839887671,
+        "std_cr": 0.00614535196318539
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 10.1,
+        "std_kf": 1.1532562594670797,
+        "min_kf": 8,
+        "max_kf": 13,
+        "cv_kf": 0.1141837880660475,
+        "mean_cr": 0.06758379014969149,
+        "std_cr": 0.005292872376648123
+      },
+      "gripper_d5": {
+        "mean_kf": 3.78,
+        "std_kf": 0.4142463035441596,
+        "min_kf": 3,
+        "max_kf": 4,
+        "cv_kf": 0.10958896919157661,
+        "mean_cr": 0.025433207782285826,
+        "std_cr": 0.0032951827131415218
+      },
+      "awe_eps0.01": {
+        "mean_kf": 15.6,
+        "std_kf": 1.42828568570857,
+        "min_kf": 13,
+        "max_kf": 21,
+        "cv_kf": 0.09155677472490834,
+        "mean_cr": 0.10447980347716589,
+        "std_cr": 0.005672963139515332
+      }
+    }
+  },
+  "pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.07997202684616025,
+        "std_cr": 0.007642857657138477
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 8.7,
+        "std_kf": 1.063014581273465,
+        "min_kf": 7,
+        "max_kf": 11,
+        "cv_kf": 0.12218558405442127,
+        "mean_cr": 0.06889969013667605,
+        "std_cr": 0.00481588884184332
+      },
+      "gripper_d5": {
+        "mean_kf": 3.9,
+        "std_kf": 0.6708203932499369,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.17200522903844537,
+        "mean_cr": 0.0308861755632468,
+        "std_cr": 0.004070077053573133
+      },
+      "awe_eps0.01": {
+        "mean_kf": 13.94,
+        "std_kf": 1.4478950238190613,
+        "min_kf": 12,
+        "max_kf": 20,
+        "cv_kf": 0.10386621404727843,
+        "mean_cr": 0.11074877005371314,
+        "std_cr": 0.008469208510816454
+      }
+    }
+  },
+  "pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.08562715510962862,
+        "std_cr": 0.011645285846666697
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 8.5,
+        "std_kf": 1.4730919862656235,
+        "min_kf": 7,
+        "max_kf": 13,
+        "cv_kf": 0.1733049395606616,
+        "mean_cr": 0.07127145572458514,
+        "std_cr": 0.005413383418642845
+      },
+      "gripper_d5": {
+        "mean_kf": 3.86,
+        "std_kf": 0.8487638069569178,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.21988699662096317,
+        "mean_cr": 0.03229153885612201,
+        "std_cr": 0.00416740472226797
+      },
+      "awe_eps0.01": {
+        "mean_kf": 14.36,
+        "std_kf": 2.007585614612737,
+        "min_kf": 12,
+        "max_kf": 21,
+        "cv_kf": 0.13980401215966134,
+        "mean_cr": 0.12092568412153659,
+        "std_cr": 0.00754716689593316
+      }
+    }
+  },
+  "pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.07566693401155905,
+        "std_cr": 0.008924881832507113
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 9.34,
+        "std_kf": 1.595117550527233,
+        "min_kf": 7,
+        "max_kf": 14,
+        "cv_kf": 0.17078346365387934,
+        "mean_cr": 0.06941531300698726,
+        "std_cr": 0.005596461729899231
+      },
+      "gripper_d5": {
+        "mean_kf": 3.86,
+        "std_kf": 0.6636264009214823,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.17192393806256018,
+        "mean_cr": 0.028843995409503886,
+        "std_cr": 0.003811631351751935
+      },
+      "awe_eps0.01": {
+        "mean_kf": 15.02,
+        "std_kf": 1.9234344283078642,
+        "min_kf": 13,
+        "max_kf": 21,
+        "cv_kf": 0.12805821759706154,
+        "mean_cr": 0.112196372416294,
+        "std_cr": 0.006706444659160469
+      }
+    }
+  },
+  "pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.10019672011588136,
+        "std_cr": 0.009808406225984282
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 7.42,
+        "std_kf": 1.1151681487560519,
+        "min_kf": 6,
+        "max_kf": 13,
+        "cv_kf": 0.15029220333639512,
+        "mean_cr": 0.07345177677363197,
+        "std_cr": 0.0057652504387542105
+      },
+      "gripper_d5": {
+        "mean_kf": 3.96,
+        "std_kf": 0.5276362383309168,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.1332414743259891,
+        "mean_cr": 0.03940805342811867,
+        "std_cr": 0.0044618993993235465
+      },
+      "awe_eps0.01": {
+        "mean_kf": 13.52,
+        "std_kf": 1.6521501142450705,
+        "min_kf": 12,
+        "max_kf": 23,
+        "cv_kf": 0.12220045223706143,
+        "mean_cr": 0.13417241168162616,
+        "std_cr": 0.00832945346306395
+      }
+    }
+  },
+  "pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+    "path": "/Users/leodanilov/keyframe_selection/LIBERO/libero/datasets/libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate_demo.hdf5",
+    "n_demos": 50,
+    "extractors": {
+      "uniform_10": {
+        "mean_kf": 10.0,
+        "std_kf": 0.0,
+        "min_kf": 10,
+        "max_kf": 10,
+        "cv_kf": 0.0,
+        "mean_cr": 0.08769390485542189,
+        "std_cr": 0.011159849783718393
+      },
+      "velocity_p25_d5": {
+        "mean_kf": 8.34,
+        "std_kf": 1.2101239605924676,
+        "min_kf": 6,
+        "max_kf": 11,
+        "cv_kf": 0.14509879623410882,
+        "mean_cr": 0.0719750583451055,
+        "std_cr": 0.005237268608320628
+      },
+      "gripper_d5": {
+        "mean_kf": 3.92,
+        "std_kf": 0.8447484832777151,
+        "min_kf": 3,
+        "max_kf": 6,
+        "cv_kf": 0.21549706206064162,
+        "mean_cr": 0.033713482630245845,
+        "std_cr": 0.004757116843919729
+      },
+      "awe_eps0.01": {
+        "mean_kf": 14.76,
+        "std_kf": 1.79510445378535,
+        "min_kf": 12,
+        "max_kf": 20,
+        "cv_kf": 0.12161954293938686,
+        "mean_cr": 0.12777293994904962,
+        "std_cr": 0.008415210247451642
+      }
+    }
+  }
+}

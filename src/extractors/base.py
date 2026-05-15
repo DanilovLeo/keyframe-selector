@@ -11,8 +11,9 @@ class KeyframeExtractor(ABC):
         """Select keyframe indices from a trajectory array.
 
         Args:
-            trajectory: Array of shape (T, D). The semantics of D vary by
-                        subclass (e.g. EE position, gripper qpos).
+            trajectory: Array of shape (T, …). May be a 1-D signal (T,),
+                        a 2-D feature array (T, D), or a 4-D frame stack
+                        (T, H, W, C) — subclass decides what it reads.
 
         Returns:
             1-D integer array of selected frame indices, sorted ascending.
