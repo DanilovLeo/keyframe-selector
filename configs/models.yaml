@@ -1,0 +1,15 @@
+# Pinned model identifiers for reproducibility.
+# All experiment scripts load from here — do not hardcode model names elsewhere.
+
+clip:
+  model: "ViT-L-14"          # open_clip model name
+  pretrained: "openai"       # open_clip weights tag
+  dim: 768
+
+dinov2:
+  timm_model: "vit_small_patch14_dinov2"   # timm model ID (ViT-S/14, 384-dim)
+  dim: 384
+
+raft:
+  torchvision_model: "raft_small"
+  weights: "Raft_Small_Weights.DEFAULT"    # torchvision weights tag
