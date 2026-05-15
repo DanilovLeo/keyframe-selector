@@ -1,8 +1,7 @@
-"""Visualization helpers for trajectory and keyframe analysis."""
+"""Visualization helpers for keyframe selection experiments."""
 
-import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,107 +14,100 @@ def _ensure_results_dir() -> Path:
     return _RESULTS_DIR
 
 
-def plot_trajectory_with_keyframes(
-    ee_pos: np.ndarray,
+def plot_frame_grid(
+    images: np.ndarray,
     keyframe_indices: np.ndarray,
     title: str = "",
+    max_frames: int = 16,
     save_name: Optional[str] = None,
 ) -> plt.Figure:
-    """3-panel plot of XYZ EE position with keyframe markers overlaid.
+    """Thumbnail grid of selected keyframe images.
 
     Args:
-        ee_pos:           EE position array of shape (T, 3).
-        keyframe_indices: 1-D integer array of keyframe frame indices.
-        title:            Figure suptitle. Also used as default save filename.
-        save_name:        Override filename (without extension). If None,
-                          derived from title or skipped if title is empty.
+        images:           (T, H, W, 3) uint8 frame array.
+        keyframe_indices: 1-D integer array of selected frame indices.
+        title:            Figure suptitle.
+        max_frames:       Cap on how many thumbnails to show (leftmost subset).
+        save_name:        Filename stem for saving; skipped if None.
 
     Returns:
-        The matplotlib Figure object for inline display in notebooks.
+        matplotlib Figure.
     """
-    T = len(ee_pos)
-    t = np.arange(T)
-    labels = ["X", "Y", "Z"]
+    idx = keyframe_indices[:max_frames]
+    n = len(idx)
+    ncols = min(n, 8)
+    nrows = (n + ncols - 1) // ncols
 
-    fig, axes = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 1.6, nrows * 1.6))
+    axes = np.array(axes).reshape(-1)  # always 1-D
+
+    for ax_i, frame_i in enumerate(idx):
+        axes[ax_i].imshow(images[frame_i])
+        axes[ax_i].set_title(f"t={frame_i}", fontsize=7)
+        axes[ax_i].axis("off")
+
+    for ax_i in range(len(idx), len(axes)):
+        axes[ax_i].axis("off")
+
     if title:
-        fig.suptitle(title, fontsize=13)
-
-    for i, ax in enumerate(axes):
-        ax.plot(t, ee_pos[:, i], color="steelblue", linewidth=1.2, label="EE pos")
-        ax.scatter(
-            keyframe_indices,
-            ee_pos[keyframe_indices, i],
-            color="crimson",
-            zorder=5,
-            s=40,
-            label="keyframes" if i == 0 else None,
-        )
-        ax.set_ylabel(f"{labels[i]} (m)", fontsize=9)
-        ax.grid(True, alpha=0.3)
-
-    axes[-1].set_xlabel("Frame", fontsize=9)
-    axes[0].legend(fontsize=8, loc="upper right")
+        fig.suptitle(title, fontsize=10)
     fig.tight_layout()
 
-    fname = save_name or (title.replace(" ", "_").lower() if title else None)
-    if fname:
-        out = _ensure_results_dir() / f"{fname}_trajectory.png"
-        fig.savefig(out, dpi=150, bbox_inches="tight")
+    if save_name:
+        out = _ensure_results_dir() / f"{save_name}_frame_grid.png"
+        fig.savefig(out, dpi=120, bbox_inches="tight")
 
     return fig
 
 
-def plot_velocity_profile(
-    ee_vel: np.ndarray,
+def plot_signal_with_keyframes(
+    signal: np.ndarray,
     keyframe_indices: np.ndarray,
+    ylabel: str = "signal",
     title: str = "",
     save_name: Optional[str] = None,
 ) -> plt.Figure:
-    """Plot EE speed profile with keyframe positions marked.
+    """Line plot of a 1-D per-frame signal with keyframe positions marked.
+
+    Suitable for optical-flow magnitude, attention distance, or any
+    scalar derived from the video.
 
     Args:
-        ee_vel:           EE velocity array of shape (T, 3).
-        keyframe_indices: 1-D integer array of keyframe frame indices.
+        signal:           1-D float array of length T.
+        keyframe_indices: 1-D integer array of selected frame indices.
+        ylabel:           Y-axis label.
         title:            Figure title.
-        save_name:        Override save filename (without extension).
+        save_name:        Filename stem for saving; skipped if None.
 
     Returns:
-        The matplotlib Figure object.
+        matplotlib Figure.
     """
-    T = len(ee_vel)
+    T = len(signal)
     t = np.arange(T)
-    speed = np.linalg.norm(ee_vel, axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 3))
-    ax.plot(t, speed, color="steelblue", linewidth=1.2, label="speed")
+    ax.plot(t, signal, color="steelblue", linewidth=1.2, label=ylabel)
     ax.vlines(
         keyframe_indices,
-        ymin=0,
-        ymax=speed.max() * 1.05,
+        ymin=signal.min(),
+        ymax=signal.max() * 1.05,
         colors="crimson",
         linewidth=0.8,
         alpha=0.7,
         label="keyframes",
     )
-    ax.scatter(
-        keyframe_indices,
-        speed[keyframe_indices],
-        color="crimson",
-        zorder=5,
-        s=30,
-    )
+    ax.scatter(keyframe_indices, signal[keyframe_indices],
+               color="crimson", zorder=5, s=30)
     ax.set_xlabel("Frame", fontsize=9)
-    ax.set_ylabel("Speed (m/frame)", fontsize=9)
+    ax.set_ylabel(ylabel, fontsize=9)
     ax.legend(fontsize=8, loc="upper right")
     ax.grid(True, alpha=0.3)
     if title:
         ax.set_title(title, fontsize=11)
     fig.tight_layout()
 
-    fname = save_name or (title.replace(" ", "_").lower() if title else None)
-    if fname:
-        out = _ensure_results_dir() / f"{fname}_velocity.png"
+    if save_name:
+        out = _ensure_results_dir() / f"{save_name}_signal.png"
         fig.savefig(out, dpi=150, bbox_inches="tight")
 
     return fig
