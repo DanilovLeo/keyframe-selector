@@ -194,8 +194,8 @@ def main():
             print(f"\nLoading BridgeDataLoader from {args.root} ...")
             loader = BridgeDataLoader(root=args.root)
             results["real_eps"] = check_real_episode(loader, cfg, args.n_check_eps)
-        except ImportError:
-            print(f"{SKIP} lerobot not installed — skipping real episode check")
+        except ImportError as e:
+            print(f"{SKIP} Missing dependency — skipping real episode check: {e}")
             results["real_eps"] = None
         except Exception as e:
             print(f"{FAIL} BridgeDataLoader: {e}")

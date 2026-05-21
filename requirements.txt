@@ -8,4 +8,5 @@ pandas
 transformers
 timm
 open-clip-torch
-lerobot
+datasets
+huggingface_hub

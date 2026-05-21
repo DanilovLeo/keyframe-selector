@@ -57,20 +57,10 @@ cd keyframe-selector
 # PyTorch and torchvision are pre-installed in the RunPod PyTorch template.
 # Install the remaining project dependencies:
 
-pip install timm open-clip-torch scipy matplotlib pyyaml
-
-# lerobot — dataset loader for BridgeData v2
-pip install lerobot
+pip install timm open-clip-torch scipy matplotlib pyyaml datasets huggingface_hub
 
 # Verify key imports
-python -c "import timm, open_clip, lerobot; print('imports OK')"
-```
-
-If `pip install lerobot` fails with a dependency conflict, try:
-
-```bash
-pip install "lerobot[dev]" --no-deps
-pip install datasets huggingface_hub
+python -c "import timm, open_clip, datasets; print('imports OK')"
 ```
 
 ---
