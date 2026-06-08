@@ -10,3 +10,6 @@ timm
 open-clip-torch
 datasets
 huggingface_hub
+# On RunPod install with: pip install --only-binary :all: av
+# (pulls the dav1d-bundled wheel so AV1 MP4s decode without a source build needing ffmpeg+pkg-config)
+av==13.1.0

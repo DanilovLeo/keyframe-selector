@@ -1,46 +1,72 @@
 """
 bridge_loader.py
 
-Episode-level loader for BridgeData v2 using HuggingFace datasets directly.
-No lerobot dependency — uses the same parquet files that lerobot would download,
-but accesses them via the stable `datasets` library API.
+Episode-level loader for BridgeData v2 in LeRobot v2.0 layout.
 
-Typical usage
--------------
+Data source
+-----------
+`IPEC-COMMUNITY/bridge_orig_lerobot` — the canonical LeRobot-v2 packaging of
+BridgeData v2. Pixels are stored as one MP4 per episode per camera view; this
+loader pulls them *lazily*, one episode at a time, via `hf_hub_download`
+(content-addressed cache → no re-download across the K-sweep and seeds).
+
+Only the single view `observation.images.image_0` is read — this matches the
+preferred image key of the previous loader. The other three camera views are
+deliberately NOT fanned in; doing so would change what the study compresses.
+
+Public contract (unchanged from the previous version)
+------------------------------------------------------
     from src.data.bridge_loader import BridgeDataLoader
 
     loader = BridgeDataLoader(root="~/.cache/hf_bridge")
-    tasks  = loader.list_tasks(min_demos=20)
-    eps    = loader.list_episodes(tasks[0])
+    tasks  = loader.list_tasks(min_demos=20)   # sorted task strings
+    eps    = loader.list_episodes(tasks[0])    # ascending episode indices
+    n      = loader.num_episodes_for(tasks[0])
     ep     = loader.load_episode(eps[0])
-    # ep["images"]    → np.ndarray (T, H, W, 3) uint8
+    # ep["images"]    → np.ndarray (T, 256, 256, 3) uint8, RGB
     # ep["task_name"] → str
     # ep["n_frames"]  → int
+
+Implementation notes
+--------------------
+* Index (`list_tasks` / `list_episodes` / `num_episodes_for`) is built from
+  `meta/episodes.jsonl` + `meta/tasks.jsonl` — a few MB of metadata, no pixels.
+* `load_episode` fetches exactly one MP4 (`observation.images.image_0`) and
+  decodes it to RGB with PyAV (`to_ndarray(format="rgb24")`), so the contract's
+  RGB channel order holds without a separate BGR→RGB conversion.
+* Episode → file mapping is deterministic: it follows the dataset's own
+  `video_path` template and `chunks_size` from `meta/info.json`.
 """
 
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 
 
-_DATASET_REPO = "lerobot/bridgedata_v2"
+_DATASET_REPO = "IPEC-COMMUNITY/bridge_orig_lerobot"
+_VIDEO_KEY = "observation.images.image_0"  # single view — do NOT fan out to all 4
+_DECODE_CACHE_SIZE = 16  # in-memory decoded-episode LRU (file cache is separate/unbounded)
 
 
 class BridgeDataLoader:
-    """Episode-level accessor for BridgeData v2.
+    """Episode-level accessor for BridgeData v2 (LeRobot-v2 / IPEC mirror).
 
-    Downloads parquet files on first construction (HuggingFace cache);
-    images are decoded per-episode on demand. A task-index JSON cache is
-    written next to the dataset root to avoid re-scanning on subsequent runs.
+    Metadata (episode/task index) is fetched once on construction; each
+    episode's frames are fetched and decoded on demand in `load_episode`.
+    Both the metadata files and the per-episode MP4s land in the HuggingFace
+    content-addressed cache, so repeated access across the K-sweep and the
+    3 random seeds re-reads from disk rather than re-downloading.
 
     Args:
         root:         Local HuggingFace cache directory. Defaults to the
-                      HuggingFace default (~/.cache/huggingface/datasets).
-        dataset_name: HuggingFace repo ID (default: "lerobot/bridgedata_v2").
+                      HuggingFace default (~/.cache/huggingface).
+        dataset_name: HuggingFace repo ID
+                      (default: "IPEC-COMMUNITY/bridge_orig_lerobot").
     """
 
     def __init__(
@@ -48,23 +74,42 @@ class BridgeDataLoader:
         root: Optional[str] = None,
         dataset_name: str = _DATASET_REPO,
     ) -> None:
-        from datasets import load_dataset  # noqa: PLC0415
-
+        self._repo = dataset_name
         self._root = Path(root).expanduser() if root else None
+        self._cache_dir = str(self._root) if self._root is not None else None
 
-        kwargs: dict = {"split": "train"}
-        if self._root is not None:
-            kwargs["cache_dir"] = str(self._root)
+        # ---- fetch metadata only (no pixels) --------------------------------
+        info = self._read_json(self._fetch_meta("meta/info.json"))
+        self._video_path_tmpl: str = info["video_path"]
+        self._chunks_size: int = int(info.get("chunks_size", 1000))
 
-        print(f"Loading {dataset_name} (parquet scan, first run may take a few minutes)...")
-        self._ds = load_dataset(dataset_name, **kwargs)
+        episodes = self._read_jsonl(self._fetch_meta("meta/episodes.jsonl"))
+        tasks = self._read_jsonl(self._fetch_meta("meta/tasks.jsonl"))
 
-        self._task_to_episodes, self._episode_slices = _build_indexes(
-            self._ds, self._root
-        )
+        # Canonical task strings (tasks.jsonl) — used to validate grouping keys.
+        self._valid_tasks = {row["task"] for row in tasks if "task" in row}
+
+        # task string → [episode_index, ...] in ascending episode order, and
+        # episode_index → (task string, length). episodes.jsonl already carries
+        # the resolved task string in `tasks`, so no task_index lookup is needed.
+        self._task_to_episodes: Dict[str, List[int]] = {}
+        self._episode_meta: Dict[int, Dict] = {}
+
+        for row in sorted(episodes, key=lambda r: int(r["episode_index"])):
+            ep_idx = int(row["episode_index"])
+            ep_tasks = row.get("tasks") or []
+            task = str(ep_tasks[0]) if ep_tasks else ""
+            length = int(row.get("length", 0))
+
+            self._episode_meta[ep_idx] = {"task": task, "length": length}
+            if task:
+                self._task_to_episodes.setdefault(task, []).append(ep_idx)
+
+        # Bounded in-memory decode cache (file cache lives in the HF cache dir).
+        self._decode_cache: "OrderedDict[int, dict]" = OrderedDict()
 
     # ------------------------------------------------------------------
-    # Public API (unchanged from the lerobot-based version)
+    # Public API (byte-identical signatures to the previous version)
     # ------------------------------------------------------------------
 
     def list_tasks(self, min_demos: int = 20) -> List[str]:
@@ -74,7 +119,7 @@ class BridgeDataLoader:
         )
 
     def list_episodes(self, task: str) -> List[int]:
-        """Episode indices that belong to *task*."""
+        """Episode indices that belong to *task* (ascending)."""
         return list(self._task_to_episodes.get(task, []))
 
     def num_episodes_for(self, task: str) -> int:
@@ -85,148 +130,100 @@ class BridgeDataLoader:
 
         Returns:
             dict with:
-              "images"    — np.ndarray (T, H, W, 3) uint8
+              "images"    — np.ndarray (T, H, W, 3) uint8, RGB
               "task_name" — str
               "n_frames"  — int
         """
-        start, end = self._episode_slices[episode_index]
-        episode_ds = self._ds.select(range(start, end))
+        cached = self._decode_cache.get(episode_index)
+        if cached is not None:
+            self._decode_cache.move_to_end(episode_index)
+            return cached
 
-        frames: List[np.ndarray] = []
-        task_name = ""
-        for i in range(len(episode_ds)):
-            row = episode_ds[i]
-            if not task_name:
-                task_name = _extract_task(row)
-            frames.append(_extract_image(row))
+        meta = self._episode_meta[episode_index]
+        task_name = meta["task"]
 
-        return {
-            "images":    np.stack(frames, axis=0),
+        mp4_path = self._fetch_episode_video(episode_index)
+        images = self._decode_rgb(mp4_path)
+
+        result = {
+            "images":    images,
             "task_name": task_name,
-            "n_frames":  len(frames),
+            "n_frames":  int(images.shape[0]),
         }
 
+        self._decode_cache[episode_index] = result
+        if len(self._decode_cache) > _DECODE_CACHE_SIZE:
+            self._decode_cache.popitem(last=False)
+        return result
 
-# ------------------------------------------------------------------
-# Index building
-# ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Fetch helpers (lazy hf_hub_download → content-addressed cache)
+    # ------------------------------------------------------------------
 
-def _build_indexes(
-    ds,
-    root: Optional[Path],
-) -> Tuple[Dict[str, List[int]], Dict[int, Tuple[int, int]]]:
-    """Return (task_to_episodes, episode_slices) with a JSON cache on disk.
+    def _fetch_meta(self, filename: str) -> str:
+        return self._hf_download(filename)
 
-    task_to_episodes : {task_str: [episode_index, ...]}
-    episode_slices   : {episode_index: (first_row, last_row_exclusive)}
+    def _fetch_episode_video(self, episode_index: int) -> str:
+        """Resolve and download the single-view MP4 for *episode_index*."""
+        chunk = episode_index // self._chunks_size
+        rel = self._video_path_tmpl.format(
+            episode_chunk=chunk,
+            video_key=_VIDEO_KEY,
+            episode_index=episode_index,
+        )
+        return self._hf_download(rel)
 
-    Uses Arrow columnar access — only reads episode_index and task columns,
-    not image data, so the scan is fast (~9M integers).
-    """
-    cache_path = (root / "bridge_task_index.json") if root is not None else None
+    def _hf_download(self, filename: str) -> str:
+        from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
-    if cache_path is not None and cache_path.exists():
-        with open(cache_path) as f:
-            raw = json.load(f)
-        task_to_eps   = {k: [int(x) for x in v] for k, v in raw["task_to_eps"].items()}
-        episode_slices = {int(k): tuple(v) for k, v in raw["episode_slices"].items()}
-        return task_to_eps, episode_slices
+        return hf_hub_download(
+            repo_id=self._repo,
+            filename=filename,
+            repo_type="dataset",
+            cache_dir=self._cache_dir,
+        )
 
-    print("Building task/episode index (one-time scan)...")
-    ep_col   = ds["episode_index"]       # list[int], one per frame
-    task_col = _read_task_column(ds)     # list[str], one per frame
+    # ------------------------------------------------------------------
+    # Decode (PyAV → RGB, no BGR round-trip)
+    # ------------------------------------------------------------------
 
-    task_to_eps: Dict[str, List[int]] = {}
-    episode_slices: Dict[int, List[int]] = {}  # {ep_idx: [start, end]}
-    seen_ep_task: set = set()
+    @staticmethod
+    def _decode_rgb(mp4_path: str) -> np.ndarray:
+        """Decode an MP4 to (T, H, W, 3) uint8 RGB.
 
-    for row_i, (ep_idx, task) in enumerate(zip(ep_col, task_col)):
-        ep_idx = int(ep_idx)
-        task   = str(task)
+        Uses PyAV's `to_ndarray(format="rgb24")`, which yields RGB directly —
+        the loader never produces BGR, so downstream extractors (optical flow,
+        attention) and the retrieval embedder receive the channel order they
+        assume.
+        """
+        import av  # noqa: PLC0415
 
-        key = (ep_idx, task)
-        if key not in seen_ep_task:
-            seen_ep_task.add(key)
-            task_to_eps.setdefault(task, []).append(ep_idx)
+        frames: List[np.ndarray] = []
+        with av.open(mp4_path) as container:
+            stream = container.streams.video[0]
+            for frame in container.decode(stream):
+                frames.append(frame.to_ndarray(format="rgb24"))
 
-        if ep_idx not in episode_slices:
-            episode_slices[ep_idx] = [row_i, row_i + 1]
-        else:
-            episode_slices[ep_idx][1] = row_i + 1
+        if not frames:
+            raise RuntimeError(f"No frames decoded from {mp4_path}")
 
-    episode_slices_final = {k: tuple(v) for k, v in episode_slices.items()}
+        return np.stack(frames, axis=0).astype(np.uint8)
 
-    if cache_path is not None:
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w") as f:
-            json.dump({
-                "task_to_eps":    task_to_eps,
-                "episode_slices": {str(k): list(v) for k, v in episode_slices_final.items()},
-            }, f)
+    # ------------------------------------------------------------------
+    # Small parse helpers
+    # ------------------------------------------------------------------
 
-    return task_to_eps, episode_slices_final
+    @staticmethod
+    def _read_json(path: str) -> dict:
+        with open(path) as f:
+            return json.load(f)
 
-
-# ------------------------------------------------------------------
-# Column helpers
-# ------------------------------------------------------------------
-
-def _read_task_column(ds) -> list:
-    """Extract the task string column from the HuggingFace dataset."""
-    cols = ds.column_names
-    if "task" in cols:
-        return ds["task"]
-    if "annotation.task" in cols:
-        return ds["annotation.task"]
-    if "task_index" in cols:
-        # Integer task IDs with no lookup table — convert to strings as-is.
-        return [str(x) for x in ds["task_index"]]
-    raise RuntimeError(
-        f"Cannot locate task column. Available columns: {cols}"
-    )
-
-
-def _extract_task(row: dict) -> str:
-    """Pull task string from a single frame dict."""
-    for key in ("task", "annotation.task"):
-        if key in row:
-            v = row[key]
-            return str(v) if not isinstance(v, str) else v
-    if "task_index" in row:
-        return str(row["task_index"])
-    return ""
-
-
-def _extract_image(row: dict) -> np.ndarray:
-    """Return (H, W, 3) uint8 from a frame dict.
-
-    Handles PIL Images, torch Tensors, and numpy arrays.
-    Tries common lerobot image column names in order.
-    """
-    for key in ("observation.image", "observation.images.image_0", "image"):
-        if key not in row:
-            continue
-        img = row[key]
-
-        # PIL Image (most common when loaded via HuggingFace datasets)
-        if hasattr(img, "convert"):
-            return np.array(img.convert("RGB"), dtype=np.uint8)
-
-        # torch Tensor
-        if hasattr(img, "numpy"):
-            arr = img.numpy()
-            if arr.ndim == 3 and arr.shape[0] in (1, 3, 4):   # (C, H, W) → (H, W, C)
-                arr = np.transpose(arr, (1, 2, 0))
-            if arr.dtype != np.uint8:
-                arr = (np.clip(arr, 0, 1) * 255).astype(np.uint8)
-            return arr
-
-        # numpy array
-        if isinstance(img, np.ndarray):
-            if img.ndim == 3 and img.shape[0] in (1, 3, 4):
-                img = np.transpose(img, (1, 2, 0))
-            return img.astype(np.uint8)
-
-    raise KeyError(
-        f"No image key found in frame dict. Available keys: {sorted(row.keys())}"
-    )
+    @staticmethod
+    def _read_jsonl(path: str) -> List[dict]:
+        rows: List[dict] = []
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    rows.append(json.loads(line))
+        return rows
