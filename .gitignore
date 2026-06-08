@@ -1,5 +1,5 @@
-/results/
 /data/
+cache/
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/

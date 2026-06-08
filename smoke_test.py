@@ -27,7 +27,6 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.extractors import KeyframeExtractor, UniformExtractor, RandomExtractor
-from src.eval.metrics import compression_ratio
 
 # Collect available extractors; image-based ones added once Phase 3/4 land
 EXTRACTORS: list[tuple[str, KeyframeExtractor]] = [
@@ -103,7 +102,7 @@ def main():
     all_passed = True
     for name, ext in EXTRACTORS:
         kf = ext.extract(images)
-        cr = compression_ratio(T, len(kf))
+        cr = KeyframeExtractor.compression_ratio(T, len(kf))
         snippet = kf[:8].tolist()
         print(f"{name:<18} {len(kf):>4} {cr:>7.3f}  {snippet}")
 
