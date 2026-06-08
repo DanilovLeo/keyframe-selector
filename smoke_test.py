@@ -14,8 +14,10 @@ Usage (from keyframe-selector/):
     python smoke_test.py --task "pick up..."     # override task string
     python smoke_test.py --episode 5             # override episode index
 
-BridgeData v2 data is downloaded via lerobot on first run (~few GB for the
-metadata; individual episode images are fetched lazily).
+BridgeData v2 is streamed one episode at a time from the IPEC LeRobot mirror
+(IPEC-COMMUNITY/bridge_orig_lerobot): __init__ fetches ~12 MB of metadata, then
+each episode's MP4 (~0.36 MB) is fetched and decoded on demand. AV1 decode needs
+`av` (pip install --only-binary :all: av==13.1.0).
 """
 
 import argparse
