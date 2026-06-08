@@ -53,6 +53,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from src.extractors.frame_diff import FrameDiffExtractor
+    EXTRACTORS.append(("frame_diff", FrameDiffExtractor()))
+except ImportError:
+    pass
+
 
 def check_task(loader, task: str, max_episodes: int) -> dict:
     """Run all extractors on up to max_episodes episodes for a given task."""

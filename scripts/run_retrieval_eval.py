@@ -55,6 +55,7 @@ from src.extractors import (
     RandomExtractor,
     OpticalFlowExtractor,
     AttentionSaliencyExtractor,
+    FrameDiffExtractor,
 )
 from src.evaluation.retrieval import (
     load_clip,
@@ -94,10 +95,14 @@ def build_extractor_grid(cfg: dict) -> List[tuple]:
     for k in K_SWEEP:
         for seed in RANDOM_SEEDS:
             grid.append((f"random_k{k}_s{seed}", RandomExtractor(n_keyframes=k, seed=seed)))
-    grid.append(("optical_flow",   OpticalFlowExtractor()))
-    grid.append(("attention_dino", AttentionSaliencyExtractor(
-        timm_model=cfg["dinov2"]["timm_model"]
-    )))
+    for k in K_SWEEP:
+        grid.append((f"optical_flow_k{k}", OpticalFlowExtractor(n_keyframes=k)))
+    for k in K_SWEEP:
+        grid.append((f"attention_k{k}", AttentionSaliencyExtractor(
+            n_keyframes=k, timm_model=cfg["dinov2"]["timm_model"]
+        )))
+    for k in K_SWEEP:
+        grid.append((f"frame_diff_k{k}", FrameDiffExtractor(n_keyframes=k)))
     return grid
 
 
@@ -269,7 +274,8 @@ def main():
 
     extractor_grid = build_extractor_grid(cfg)
     print(f"  extractor configs: {len(extractor_grid)}  "
-          f"({len(K_SWEEP)} uniform + {len(K_SWEEP)*len(RANDOM_SEEDS)} random + 2 CV)\n")
+          f"({len(K_SWEEP)} uniform + {len(K_SWEEP)*len(RANDOM_SEEDS)} random "
+          f"+ {3*len(K_SWEEP)} CV)\n")
 
     # ------------------------------------------------------------------ #
     # Main loop                                                            #
@@ -304,7 +310,9 @@ def main():
     display_order = (
         [f"uniform_k{k}" for k in K_SWEEP]
         + [f"random_k{k}" for k in K_SWEEP]
-        + ["optical_flow", "attention_dino"]
+        + [f"optical_flow_k{k}" for k in K_SWEEP]
+        + [f"attention_k{k}" for k in K_SWEEP]
+        + [f"frame_diff_k{k}" for k in K_SWEEP]
     )
     for label in display_order:
         res = agg.get(label)

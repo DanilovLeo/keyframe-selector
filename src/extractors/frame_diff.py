@@ -1,35 +1,33 @@
 """
-attention.py
+frame_diff.py
 
-AttentionSaliencyExtractor: selects keyframes at local MAXIMA of frame-to-frame
-[CLS]-token cosine distance computed by DINOv2-small.
+FrameDiffExtractor: selects keyframes at frames of largest pixel-level change —
+the mean absolute difference (MAD) between consecutive frames. Pure numpy: no
+model download, no GPU, no torch. This is the cheapest motion proxy in the
+suite and a useful low-complexity counterpart to the RAFT optical-flow and
+DINOv2 attention extractors.
 
-Large cosine-distance steps correspond to semantic transitions — the visual
-scene has changed meaningfully — making them natural keyframe candidates.
-
-Model: vit_small_patch14_dinov2 (ViT-S/14, 384-dim) via timm.
-       Downloads ~85 MB on first run, cached under ~/.cache/huggingface/hub.
-
-Notes on model loading:
-  - torch.hub (facebookresearch/dinov2) requires Python 3.10+ due to `X | Y`
-    union-type annotations in the upstream repo.
-  - transformers >= 4.47 requires torch.compiler (PyTorch >= 2.1) for DINOv2.
-  - timm 1.x works with Python 3.9 and PyTorch 2.0, so it is used here.
+Large MAD steps mean the raw pixels changed a lot between two consecutive
+frames (fast motion / scene transition), making them natural keyframe
+candidates. This mirrors the attention extractor's "scene change" criterion
+(pick local MAXIMA), but on raw pixels rather than CLS embeddings.
 
 Two operating modes
 -------------------
 * ``n_keyframes=None`` (default) — variable-N: every qualifying local maximum
-  (plus endpoints) is returned, so the count is data-dependent.
+  (plus endpoints) is returned, so the count is data-dependent. This matches
+  the attention extractor's variable-N default.
 * ``n_keyframes=k`` — matched budget: return EXACTLY k frames (endpoints plus
-  the top-(k-2) largest scene-change interior frames), directly comparable to
-  the uniform/random baselines at the same K.
+  the top-(k-2) largest-change interior frames), directly comparable to the
+  uniform/random baselines (and the other heuristics) at the same K.
 
 Efficiency
 ----------
-The DINOv2 model is loaded once per process and shared across all instances
-(see ``_get_dino``). The k-INDEPENDENT CLS-distance signal is memoised per
-trajectory (see ``_signal_memo_get``), so a K-sweep that builds one instance
-per K runs DINOv2 ONCE per episode and only re-runs the cheap top-k selection.
+The k-INDEPENDENT MAD signal is memoised per trajectory (see
+``_signal_memo_get``), so a K-sweep that builds one instance per K computes the
+diff ONCE per episode and only re-runs the cheap top-k selection per K. This
+mirrors the optical_flow / attention extractors so the three heuristics share
+one structure.
 """
 
 from __future__ import annotations
@@ -39,56 +37,40 @@ from collections import OrderedDict
 from typing import Optional
 
 import numpy as np
-import torch
-import torch.nn.functional as F
-from PIL import Image
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import argrelmax
 
 from .base import KeyframeExtractor
 
 
-# Process-wide caches (shared across every AttentionSaliencyExtractor instance).
-_DINO_CACHE: dict = {}                        # (timm_model, device_str) -> (processor, model)
+# Process-wide cache (shared across every FrameDiffExtractor instance).
 _SIGNAL_MEMO: "OrderedDict[tuple, tuple]" = OrderedDict()  # key -> (fingerprint, signal)
-_SIGNAL_MEMO_MAX = 256                         # bound; eviction is FIFO, affects speed only
+_SIGNAL_MEMO_MAX = 256                        # bound; eviction is FIFO, affects speed only
 
 
-class AttentionSaliencyExtractor(KeyframeExtractor):
-    """Selects frames where the visual scene changes most (DINOv2 [CLS] distance).
+class FrameDiffExtractor(KeyframeExtractor):
+    """Selects high-change frames (pixel MAD spikes) as keyframes.
 
     Args:
         n_keyframes: If given, return EXACTLY this many frames (endpoints + the
-                     top-(k-2) largest scene-change interior frames). If None
+                     top-(k-2) largest-change interior frames). If None
                      (default), return all qualifying local maxima (variable-N).
-        timm_model:  timm model name.  Defaults to "vit_small_patch14_dinov2"
-                     (DINOv2-small, ViT-S/14, 384-dim).
         min_dist:    Minimum number of frames between any two keyframes. In
                      matched-budget mode this is a soft constraint, relaxed only
                      as far as needed to reach k.
-        sigma:       Gaussian smoothing σ applied to the distance signal (frames).
-        batch_size:  Number of frames processed per forward pass.
-        device:      Torch device string.  Defaults to "cuda" if available, "cpu" otherwise.
+        sigma:       Gaussian smoothing σ applied to the MAD signal before peak
+                     detection (frames).
     """
 
     def __init__(
         self,
         n_keyframes: Optional[int] = None,
-        timm_model: str = "vit_small_patch14_dinov2",
         min_dist: int = 5,
         sigma: float = 2.0,
-        batch_size: int = 8,
-        device: Optional[str] = None,
     ) -> None:
-        self._n          = n_keyframes
-        self._timm_model = timm_model
-        self._min_dist   = min_dist
-        self._sigma      = sigma
-        self._batch_size = batch_size
-        self._device = torch.device(
-            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
-        )
-        # Model is loaded lazily on first extract() via the shared cache.
+        self._n = n_keyframes
+        self._min_dist = min_dist
+        self._sigma = sigma
 
     # ------------------------------------------------------------------
     # KeyframeExtractor interface
@@ -96,7 +78,7 @@ class AttentionSaliencyExtractor(KeyframeExtractor):
 
     @property
     def name(self) -> str:
-        return f"attention_k{self._n}" if self._n is not None else "attention_dino"
+        return f"frame_diff_k{self._n}" if self._n is not None else "frame_diff"
 
     def extract(self, trajectory: np.ndarray) -> np.ndarray:
         """Select keyframes from a (T, H, W, 3) uint8 frame array.
@@ -111,66 +93,34 @@ class AttentionSaliencyExtractor(KeyframeExtractor):
             return np.arange(T, dtype=int)
 
         # k-INDEPENDENT signal: compute once per trajectory, reuse across K.
-        cfg_key = ("attention", self._timm_model, str(self._device))
-        signal = _signal_memo_get(cfg_key, images, self._compute_signal)
+        cfg_key = ("frame_diff",)
+        diff_signal = _signal_memo_get(cfg_key, images, _compute_diff_signal)
 
         if self._n is not None:
-            return _select_topk(signal, T, self._n, self._min_dist, self._sigma, pick="max")
-        return _select_maxima(signal, T, self._min_dist, self._sigma)
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
-    def _compute_signal(self, images: np.ndarray) -> np.ndarray:
-        """Return the (T,) k-independent CLS cosine-distance signal."""
-        features = self._extract_features(images)   # (T, D) float32, L2-normalised
-        return _cosine_distance_signal(features)    # (T,) float32, d[0]=0
-
-    def _extract_features(self, images: np.ndarray) -> np.ndarray:
-        """Return (T, D) float32 array of L2-normalised [CLS] embeddings."""
-        processor, model = _get_dino(self._timm_model, self._device)
-
-        all_cls: list[np.ndarray] = []
-        for start in range(0, len(images), self._batch_size):
-            batch_np = images[start : start + self._batch_size]
-            pil_batch = [Image.fromarray(img).convert("RGB") for img in batch_np]
-            tensors = torch.stack(
-                [processor(img) for img in pil_batch]
-            ).to(self._device)
-
-            with torch.no_grad():
-                # num_classes=0 → model(x) returns (B, D) CLS embedding
-                cls = model(tensors)
-                cls = F.normalize(cls, dim=-1)
-
-            all_cls.append(cls.cpu().float().numpy())
-
-        return np.concatenate(all_cls, axis=0)  # (T, D)
+            return _select_topk(diff_signal, T, self._n, self._min_dist, self._sigma, pick="max")
+        return _select_maxima(diff_signal, T, self._min_dist, self._sigma)
 
 
 # ------------------------------------------------------------------
-# Shared model loading (once per process)
+# Signal computation (pure numpy)
 # ------------------------------------------------------------------
 
-def _get_dino(timm_model: str, device):
-    """Return (preprocess, model) for *timm_model*, loaded once per process."""
-    key = (timm_model, str(device))
-    cached = _DINO_CACHE.get(key)
-    if cached is None:
-        import timm  # noqa: PLC0415
+def _compute_diff_signal(images: np.ndarray) -> np.ndarray:
+    """Return per-frame mean absolute difference array of length T.
 
-        # num_classes=0 → forward() returns the pooled CLS embedding (B, D)
-        # rather than class logits.
-        model = timm.create_model(timm_model, pretrained=True, num_classes=0)
-        model = model.to(device).eval()
-
-        # Use the model's own recommended preprocessing (resize, crop, normalize)
-        data_cfg   = timm.data.resolve_model_data_config(model)
-        preprocess = timm.data.create_transform(**data_cfg, is_training=False)
-        cached = (preprocess, model)
-        _DINO_CACHE[key] = cached
-    return cached
+    diff[t] = mean(|images[t] - images[t-1]|) over every pixel/channel.
+    diff[0] is defined as 0 (no predecessor frame). Differences are taken in
+    int16 to avoid uint8 wraparound (255 - 0 must read as 255, not -1).
+    """
+    T = images.shape[0]
+    signal = np.zeros(T, dtype=np.float32)
+    if T < 2:
+        return signal
+    cur  = images[1:].astype(np.int16)
+    prev = images[:-1].astype(np.int16)
+    axes = tuple(range(1, images.ndim))          # average over all non-time axes
+    signal[1:] = np.abs(cur - prev).mean(axis=axes).astype(np.float32)
+    return signal
 
 
 # ------------------------------------------------------------------
@@ -211,22 +161,8 @@ def _signal_memo_get(cfg_key: tuple, images: np.ndarray, compute_fn):
 
 
 # ------------------------------------------------------------------
-# Signal processing helpers
+# Selection
 # ------------------------------------------------------------------
-
-def _cosine_distance_signal(features: np.ndarray) -> np.ndarray:
-    """Return per-frame cosine distance to the previous frame.
-
-    Features must be L2-normalised; d[t] = 1 - dot(feat[t-1], feat[t]).
-    d[0] is set to 0 (no predecessor).
-    """
-    T = len(features)
-    signal = np.zeros(T, dtype=np.float32)
-    # Vectorised dot products for consecutive pairs
-    dots = np.einsum("td,td->t", features[:-1], features[1:])  # (T-1,)
-    signal[1:] = 1.0 - dots
-    return signal
-
 
 def _select_maxima(
     signal: np.ndarray,
@@ -255,7 +191,7 @@ def _select_topk(
 ) -> np.ndarray:
     """Select EXACTLY k frames: endpoints + top-(k-2) interior by saliency.
 
-    pick="max": salient = high signal (scene change); pick="min": low signal.
+    pick="max": salient = high signal (large pixel change); pick="min": low.
     Spacing: min_dist is enforced in a first pass, then relaxed (next-best
     saliency) only as far as needed to reach k. Ties are broken by ascending
     index via np.lexsort — fully deterministic, no RNG (seeds only ever affect

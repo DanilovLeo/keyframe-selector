@@ -3,6 +3,7 @@ from .uniform import UniformExtractor
 from .random_extractor import RandomExtractor
 from .optical_flow import OpticalFlowExtractor
 from .attention import AttentionSaliencyExtractor
+from .frame_diff import FrameDiffExtractor
 
 __all__ = [
     "KeyframeExtractor",
@@ -10,4 +11,5 @@ __all__ = [
     "RandomExtractor",
     "OpticalFlowExtractor",
     "AttentionSaliencyExtractor",
+    "FrameDiffExtractor",
 ]
