@@ -24,6 +24,15 @@ Usage (from keyframe-selector/):
         [--max_episodes 50]
 """
 
+# Cap CPU threads BEFORE numpy/torch initialise their OpenMP/MKL runtimes.
+# On many-vCPU hosts (e.g. RunPod A100 pods) torch otherwise opens a parallel
+# region across every core for each small op; the thread launch/sync overhead
+# makes ViT forwards ~80x slower (measured: 41s -> 0.5s per episode). setdefault
+# means an explicit `export OMP_NUM_THREADS=...` still overrides this.
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "8")
+os.environ.setdefault("MKL_NUM_THREADS", "8")
+
 import argparse
 import json
 import sys
