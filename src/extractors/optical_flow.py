@@ -64,6 +64,10 @@ class OpticalFlowExtractor(KeyframeExtractor):
         device:      Torch device string.  Defaults to "cuda" if available,
                      else "cpu".
         pretrained:  If True, load RAFT-Small weights pretrained on Sintel.
+        batch_size:  Number of consecutive frame-pairs run through RAFT per
+                     forward pass. Larger keeps the GPU busier; the result is
+                     numerically identical to per-pair processing (RAFT has no
+                     cross-sample normalisation). Affects speed/VRAM only.
     """
 
     def __init__(
@@ -73,6 +77,7 @@ class OpticalFlowExtractor(KeyframeExtractor):
         sigma: float = 2.0,
         device: Optional[str] = None,
         pretrained: bool = True,
+        batch_size: int = 16,
     ) -> None:
         self._n = n_keyframes
         self._min_dist = min_dist
@@ -81,6 +86,7 @@ class OpticalFlowExtractor(KeyframeExtractor):
             device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
         self._pretrained = pretrained
+        self._batch_size = max(1, int(batch_size))
         # Model is loaded lazily on first extract() via the shared cache.
 
     # ------------------------------------------------------------------
@@ -118,39 +124,49 @@ class OpticalFlowExtractor(KeyframeExtractor):
     def _compute_flow_signal(self, images: np.ndarray) -> np.ndarray:
         """Return per-frame mean flow magnitude array of length T.
 
-        Flow at t=0 is defined as 0 (no predecessor frame).
+        Flow at t=0 is defined as 0 (no predecessor frame). Consecutive pairs
+        (f[t-1], f[t]) are run through RAFT in mini-batches of
+        ``self._batch_size`` so the GPU stays saturated and there is a single
+        GPU->CPU sync at the end, instead of one ``.item()`` per pair. RAFT
+        has no cross-sample normalisation (the feature/context encoders use
+        InstanceNorm, which is per-sample), so the batched result is
+        numerically equivalent to the per-pair loop.
         """
         model = _get_raft(self._device, self._pretrained)
 
         T = images.shape[0]
         signal = np.zeros(T, dtype=np.float32)
+        if T < 2:
+            return signal
 
         # RAFT expects float32 tensors in [0, 255], shape (N, 3, H, W).
-        # Images must be divisible by 8; pad if necessary.
+        # Images must be divisible by 8; pad once for the whole stack.
         H, W = images.shape[1], images.shape[2]
         H_pad = ((H + 7) // 8) * 8
         W_pad = ((W + 7) // 8) * 8
 
-        def to_tensor(img: np.ndarray) -> torch.Tensor:
-            t = torch.from_numpy(img).float()          # (H, W, 3)
-            t = t.permute(2, 0, 1).unsqueeze(0)        # (1, 3, H, W)
-            if H_pad != H or W_pad != W:
-                t = F.pad(t, (0, W_pad - W, 0, H_pad - H))
-            return t.to(self._device)
+        frames = torch.from_numpy(np.ascontiguousarray(images)).float()  # (T, H, W, 3)
+        frames = frames.permute(0, 3, 1, 2)                              # (T, 3, H, W)
+        if H_pad != H or W_pad != W:
+            frames = F.pad(frames, (0, W_pad - W, 0, H_pad - H))
+        frames = frames.to(self._device)
 
+        prev_all = frames[:-1]          # (T-1, 3, H_pad, W_pad)
+        curr_all = frames[1:]           # (T-1, 3, H_pad, W_pad)
+        n_pairs = T - 1
+        bs = self._batch_size
+
+        mags = torch.empty(n_pairs, device=self._device, dtype=torch.float32)
         with torch.no_grad():
-            prev = to_tensor(images[0])
-            for t in range(1, T):
-                curr = to_tensor(images[t])
-                # raft_small returns a list of flow predictions; last = finest
-                flow_preds = model(prev, curr)
-                flow = flow_preds[-1]  # (1, 2, H_pad, W_pad)
-                # Crop back to original resolution before computing magnitude
-                flow = flow[:, :, :H, :W]
-                mag = flow.norm(dim=1).mean().item()  # scalar
-                signal[t] = mag
-                prev = curr
+            for start in range(0, n_pairs, bs):
+                stop = min(start + bs, n_pairs)
+                # raft_small returns a list of flow predictions; last = finest.
+                flow_preds = model(prev_all[start:stop], curr_all[start:stop])
+                flow = flow_preds[-1][:, :, :H, :W]          # (b, 2, H, W)
+                mags[start:stop] = flow.norm(dim=1).mean(dim=(1, 2))
 
+        # Single GPU->CPU transfer; pair j -> signal[j+1].
+        signal[1:] = mags.cpu().numpy()
         return signal
 
 
