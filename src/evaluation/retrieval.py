@@ -39,11 +39,16 @@ from PIL import Image
 # ------------------------------------------------------------------
 
 def load_clip(
-    model_name: str = "ViT-L-14",
+    model_name: str = "ViT-L-14-quickgelu",
     pretrained: str = "openai",
     device: Optional[str] = None,
 ):
     """Load CLIP model + preprocess + tokenizer.
+
+    Use the "-quickgelu" variant with the openai weights: those weights were
+    trained with QuickGELU, and the plain "ViT-L-14" builds a standard-GELU
+    model, so pairing it with openai weights silently degrades every embedding.
+    Experiment scripts override these from configs/models.yaml.
 
     Returns:
         (model, preprocess, tokenizer, device)

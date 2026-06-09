@@ -2,8 +2,14 @@
 # All experiment scripts load from here — do not hardcode model names elsewhere.
 
 clip:
-  model: "ViT-L-14"          # open_clip model name
-  pretrained: "openai"       # open_clip weights tag
+  # The OpenAI CLIP weights were trained with QuickGELU. open_clip's plain
+  # "ViT-L-14" builds a standard-GELU model, so loading the openai weights into
+  # it is a silent activation mismatch that degrades every embedding. The
+  # "-quickgelu" variant instantiates the matching activation -> faithful
+  # reproduction of the original model. (Changing this name also rotates the
+  # embedding-cache key, invalidating any embeddings cached under the old name.)
+  model: "ViT-L-14-quickgelu"   # open_clip model name
+  pretrained: "openai"          # open_clip weights tag
   dim: 768
 
 dinov2:
