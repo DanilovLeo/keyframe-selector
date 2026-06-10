@@ -1,4 +1,4 @@
-> PROVISIONAL — embedding-space coverage error (lower = better). Pending supervisor sign-off; see docs/decisions.md (2026-06-10).
+> Embedding-space coverage error (lower = better). Fourth intrinsic metric, reported alongside retrieval; see docs/decisions.md (2026-06-10).
 
 | method | K | mean_cov | max_cov | n_eps |
 | --- | --- | --- | --- | --- |

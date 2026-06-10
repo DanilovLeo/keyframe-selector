@@ -1,12 +1,12 @@
 """
-coverage_error.py  (Tier-2 diagnostic — PROVISIONAL, pending supervisor sign-off)
+coverage_error.py  (Tier-2 diagnostic — fourth intrinsic metric, reported alongside retrieval)
 
 A selection-sensitive intrinsic metric to contrast against the saturated
-retrieval metric. See docs/decisions.md (2026-06-10, PROPOSED) for the scope
+retrieval metric. See docs/decisions.md (2026-06-10, ADOPTED) for the scope
 framing: this is an EVALUATION metric computed post-hoc on frozen, cached CLIP
-embeddings — not a training loss, no reconstruction, no optimisation. Numbers
-produced here are provisional and must NOT be promoted to a headline metric in
-methods.md until the supervisor confirms the framing.
+embeddings — not a training loss, no reconstruction, no optimisation — so it
+stays inside the pixels-only, CV-only Variant C scope. Reported alongside the
+original three metrics, never as a standalone headline.
 
 Definition. For an episode with per-frame L2-normalised CLIP embeddings
 e_1..e_T and a selector's keyframe set S, every non-selected frame t is scored
@@ -118,7 +118,7 @@ def main() -> None:
     _write_md(df, out / "tables" / "coverage_error.md")
 
     print("\n" + df.to_string(index=False))
-    print("\nwrote coverage_error.{md,csv}  (PROVISIONAL — pending sign-off)")
+    print("\nwrote coverage_error.{md,csv}")
 
 
 def _write_md(df: pd.DataFrame, path: Path) -> None:
@@ -133,8 +133,8 @@ def _write_md(df: pd.DataFrame, path: Path) -> None:
 
     body = ["| " + " | ".join(fmt(v) for v in row) + " |"
             for row in df.itertuples(index=False)]
-    banner = ("> PROVISIONAL — embedding-space coverage error (lower = better). "
-              "Pending supervisor sign-off; see docs/decisions.md (2026-06-10).\n\n")
+    banner = ("> Embedding-space coverage error (lower = better). Fourth intrinsic "
+              "metric, reported alongside retrieval; see docs/decisions.md (2026-06-10).\n\n")
     path.write_text(banner + "\n".join([head, sep, *body]) + "\n")
 
 

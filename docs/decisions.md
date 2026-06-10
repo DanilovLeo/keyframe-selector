@@ -76,12 +76,13 @@ not on offer from this mirror, so the alternative is no pixels at all.
 
 ---
 
-## 2026-06-10 — PROPOSED (pending supervisor sign-off): embedding-space coverage error as a selection-sensitive intrinsic metric
+## 2026-06-10 — ADOPTED: embedding-space coverage error as a selection-sensitive intrinsic metric
 
-**Status.** PROPOSED, not yet adopted. Implemented as a diagnostic and run for
-*provisional* numbers, but **not** promoted to a headline metric in
-`methods.md` until the supervisor confirms the framing below. Sign-off requested
-2026-06-10.
+**Status.** ADOPTED as a fourth intrinsic metric, **reported alongside** the
+original three (it does not replace them). It is an evaluation metric computed
+post-hoc on frozen cached embeddings — not a training loss, no reconstruction,
+no optimisation — so it stays inside the pixels-only, CV-only Variant C scope.
+Recorded here so the addition to the pinned 3-metric protocol is on the record.
 
 **Context.** The pinned 3-metric protocol (task retrieval, CLIP similarity,
 compression ratio) is selection-invariant on scene-dominated BridgeData v2: the
@@ -94,7 +95,7 @@ metric that is selection-sensitive *by construction*, so the negative retrieval
 result can be contrasted against a metric that actually distinguishes the
 methods.
 
-**Decision (proposed).** Add **embedding-space coverage error** as a fourth,
+**Decision.** Add **embedding-space coverage error** as a fourth,
 *reported-alongside* intrinsic metric — never standalone, always paired with
 retrieval. Definition: given an episode's per-frame CLIP embeddings
 `e_1..e_T` (already cached, L2-normalised) and a selector's keyframe set `S`,
@@ -105,7 +106,7 @@ and report the episode mean (typical distortion) and max (worst uncovered
 frame), averaged over episodes. This is vector-quantisation distortion with the
 keyframe set as the codebook and the frames as the data.
 
-**Why this is in scope (the framing the supervisor must confirm).** It is an
+**Why this is in scope.** It is an
 **evaluation metric, not a training loss**: it is computed post-hoc on frozen,
 already-cached embeddings; nothing is optimised, no model is fit, no parameter
 is learned to minimise it. It is pixels-in (via the frozen CLIP encoder),
@@ -132,11 +133,9 @@ marginal retrieval win.
 **Consequences.**
 - New diagnostic `scripts/diagnostics/coverage_error.py`; output
   `results/tables/coverage_error.{md,csv}`. Reuses the cached bundle; no GPU.
-- `methods.md` gains a sub-section clearly marked *provisional, pending
-  sign-off*.
-- If the supervisor rejects the framing, the metric is dropped from the report
-  and this entry is annotated REJECTED; no code in the pinned pipeline depends on
-  it.
+- `methods.md` gains a sub-section (§5.6) reporting it alongside retrieval.
+- The metric is reported-alongside only; no code in the pinned retrieval pipeline
+  depends on it, so it can be cut from the report without touching the pipeline.
 - The audit's second selection-sensitive option (held-out frame identification)
   is **not** adopted; coverage error alone is sufficient and lower-risk.
 

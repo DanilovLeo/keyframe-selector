@@ -275,12 +275,12 @@ all three aggregators — inside the ±0.056 binomial band. Max-pool lifts the
 floor ~1–2 points but separates nothing. The invariance is therefore a property
 of the **data** (near-identical frames), not of the averaging step.
 
-### 5.6 A selection-sensitive contrast: coverage error (PROVISIONAL)
+### 5.6 A selection-sensitive contrast: coverage error
 
-> **Provisional — pending supervisor sign-off** (`docs/decisions.md`,
-> 2026-06-10). Reported here as an evaluation metric computed post-hoc on frozen
-> cached embeddings (no training, no reconstruction); **not** promoted to a
-> headline metric until that framing is confirmed.
+> Added as a fourth intrinsic metric, **reported alongside** the original three
+> (`docs/decisions.md`, 2026-06-10, ADOPTED). It is an evaluation metric computed
+> post-hoc on frozen cached embeddings — no training, no reconstruction, no
+> optimisation — so it stays inside the pixels-only, CV-only Variant C scope.
 
 Embedding-space **coverage error** — for each non-selected frame, cosine
 distance to its nearest selected frame; episode mean/max averaged over episodes
@@ -359,7 +359,7 @@ results/tables/extra_baselines.*       K=1 / consecutive-block / oracle (§5.2�
 results/tables/retrieval_cis.*         bootstrap 95% CIs on the grid (§5.4)
 results/tables/retrieval_permutation.* paired permutation tests (§5.4)
 results/tables/pooling_sensitivity.*   mean/max/best-match grid (§5.5)
-results/tables/coverage_error.*        coverage error, PROVISIONAL (§5.6)
+results/tables/coverage_error.*        coverage error (§5.6)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -367,5 +367,5 @@ scripts/diagnostics/similarity_distributions.py  §5.1 + fig5
 scripts/diagnostics/extra_baselines.py         §5.2–5.3
 scripts/diagnostics/stats.py                   §5.4
 scripts/diagnostics/pooling_sensitivity.py     §5.5
-scripts/diagnostics/coverage_error.py          §5.6 (provisional)
+scripts/diagnostics/coverage_error.py          §5.6
 ```
