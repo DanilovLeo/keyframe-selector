@@ -1,0 +1,19 @@
+| K | method_a | method_b | diff_top1 | p_value |
+| --- | --- | --- | --- | --- |
+| 4 | random | uniform | 0.0169 | 0.3330 |
+| 4 | optical_flow | uniform | -0.0056 | 1.0000 |
+| 4 | attention | uniform | 0.0112 | 0.6902 |
+| 4 | frame_diff | uniform | 0.0281 | 0.2254 |
+| 8 | random | uniform | 0.0243 | 0.0562 |
+| 8 | optical_flow | uniform | 0.0112 | 0.7751 |
+| 8 | attention | uniform | -0.0056 | 1.0000 |
+| 8 | frame_diff | uniform | 0.0169 | 0.5100 |
+| 16 | random | uniform | -0.0075 | 0.5118 |
+| 16 | optical_flow | uniform | -0.0112 | 0.7227 |
+| 16 | attention | uniform | 0.0056 | 1.0000 |
+| 16 | frame_diff | uniform | 0.0056 | 1.0000 |
+| 32 | random | uniform | -0.0019 | 1.0000 |
+| 32 | optical_flow | uniform | -0.0112 | 0.4963 |
+| 32 | attention | uniform | 0.0000 | 1.0000 |
+| 32 | frame_diff | uniform | -0.0056 | 1.0000 |
+| 4 | optical_flow | frame_diff (LARGEST GAP) | -0.0337 | 0.1088 |
