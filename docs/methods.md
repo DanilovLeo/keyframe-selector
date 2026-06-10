@@ -51,6 +51,9 @@ Two K regimes are used:
   embedding. All T frames are embedded once per episode and disk-cached.
 - **Demo embedding:** L2-normalised per-frame embeddings indexed by the keyframe
   set → mean-pool → L2-normalise → one (768,) vector per (demo, extractor).
+  This pooling is **order-invariant by construction**: it maps any keyframe set
+  to an unordered bag, so it cannot, even in principle, reward motion-aware
+  *ordering* — a design property (not a tunable risk) revisited in §5.
 - **Metrics** (`src/evaluation/`):
   1. **Task retrieval** — 80/20 gallery/query split per task (seed 42), pooled
      into one multi-class problem; rank gallery by cosine similarity; Top-1 and
@@ -85,8 +88,15 @@ full grid in `results/tables/retrieval_summary.md`, curves in
 `results/plots/fig1_accuracy_vs_cr.{pdf,png}`). The spread between methods at a
 fixed K (≤ ~0.03) is no larger than — and sometimes smaller than — the random
 baseline's own seed-to-seed std, and the single best cell is `random_k8`
-(0.839), i.e. noise. CLIP similarity is essentially constant at **~0.209–0.210**
-across all methods and all K (`fig2_clipsim_vs_cr`).
+(0.839), i.e. noise. With only 178 queries the binomial 95% CI on a Top-1 of
+~0.82 is ≈ ±0.056 — *wider than the entire between-method spread* — so no method
+is statistically distinguishable from any other (proper bootstrap CIs and a
+paired permutation test are deferred to the diagnostic suite, §5). CLIP
+image–text similarity is flat at **~0.209–0.210** across all methods and all K;
+absolute CLIP-sim values are compressed and incomparable, so it carries no
+discriminative signal here and is relegated to an appendix
+(`fig2_clipsim_vs_cr`) — its flatness is itself further evidence of saturation,
+not a usable metric.
 
 Two facts hold simultaneously and are both important:
 
@@ -120,45 +130,67 @@ Aggregate over 20 tasks (`results/tables/consistency_aggregate.md`,
 Read this in two parts:
 
 - **Compression.** The content-adaptive methods self-select ~3 frames
-  (CR ≈ 0.14–0.16) versus the fixed-10 references' ~49%, i.e. **~3× harder
-  compression**. Their CR is also *stable across tasks* (0.10–0.23), whereas
-  uniform-10's CR swings 0.30 → 0.74 purely with episode length — it keeps half
-  the frames of a short reaching demo but a third of a long closing demo, with
-  no content awareness.
+  (CR ≈ 0.14–0.16) *without being told a budget*. The often-quoted ~3× gap
+  against the fixed-10 references (CR ~0.49) is an artifact of the **arbitrary
+  K=10 reference**: uniform at K=4 already reaches CR 0.19 at no retrieval cost
+  (§4.1), so non-adaptive selection compresses just as hard. The genuine
+  differentiators are therefore (i) *unsupervised* budget selection — the
+  adaptive methods find ~3 frames with no K chosen by hand — and (ii)
+  **episode-length-stable CR**: adaptive CR stays in 0.10–0.23 across tasks,
+  whereas uniform-10's CR swings 0.30 → 0.74 purely with episode length (half
+  the frames of a short reaching demo, a third of a long closing demo, with no
+  content awareness). CR *stability*, not raw compression, is the real result.
 - **Count consistency (cv_kf).** Do **not** compare adaptive vs fixed-K here:
   uniform/random sit at cv ≈ 0.005 *by construction* (they ignore content), not
-  by merit. Among the three adaptive methods, `frame_diff` (0.175) ≈ `attention`
-  (0.187) < `optical_flow` (0.219); frame_diff/attention pick a more predictable
-  number of keyframes per task, though the task-to-task spread overlaps (see the
-  error bars in fig4).
+  by merit. Among the three adaptive methods, the *observed* ordering of count
+  variability is `frame_diff` (0.175) ≲ `attention` (0.187) < `optical_flow`
+  (0.219) — frame_diff/attention pick a more predictable number of keyframes per
+  task — but the task-to-task spreads overlap (fig4), so this describes the
+  means, not a tested ranking; a paired comparison across the 20 tasks is
+  deferred to the diagnostic suite (§5).
 
 ### 4.3 Synthesis
 
-Combining the two: retrieval is **flat from K=4 to K=32**, so pushing the
-keyframe budget down costs almost nothing on this metric; and the CV methods
-*naturally* operate at that low-budget end (~3 frames). The defensible claim is
-therefore:
+Combining the two: retrieval is **flat from K=4 to K=32** (and, by §4.1's CI,
+statistically flat *across methods* at every K), so pushing the keyframe budget
+down costs almost nothing on this metric; and the CV methods *naturally* operate
+at that low-budget end (~3 frames). The defensible claim is therefore:
 
-> **Content-adaptive selection compresses demonstrations ~3× more aggressively
-> than fixed-K uniform/random while intrinsic retrieval accuracy is preserved**
-> — but it does **not** beat uniform or random at a matched budget, because the
-> retrieval metric is scene-saturated and cannot resolve selection quality.
+> **Intrinsic retrieval accuracy is preserved down to K ≈ 4 regardless of
+> selection strategy; content-adaptive methods converge to that low budget
+> *unsupervised* and with markedly more episode-length-stable compression ratios
+> (CR 0.10–0.23) than fixed-K references (0.30–0.74).** They do **not** beat
+> uniform or random at a matched budget, because the retrieval metric is
+> scene-saturated and — being built on an order-invariant mean-pool — is
+> structurally unable to resolve *which* frames are kept.
 
 This is a legitimate negative/neutral result for an intrinsic-evaluation study,
-not a failure of the CV methods.
+not a failure of the CV methods: the limitation lives in the *metric*, and the
+diagnostic suite in §5 is designed to prove that quantitatively rather than
+narrate it.
 
 ---
 
 ## 5. Threats to validity
 
-- **Metric saturation.** Top-5 ≈ 0.95 and the 20-task gallery include
-  near-duplicate instructions ("Close the drawer" / "close the drawer" /
-  "closed the drawer" / "close drawer of box"), making retrieval easy. A larger,
-  finer-grained gallery might separate methods; this run cannot rule that in.
-- **Pooling choice.** Mean-pooling is selection-robust by design and may be
-  washing out differences. A sequence-aware or max-style pooling could be more
-  sensitive. The pooling is the pinned protocol (`CLAUDE.md`) — changing it is a
-  deliberate decision, not a silent default, and is **not** done here.
+- **Metric saturation.** Top-5 ≈ 0.95 and the 20-task gallery includes
+  near-duplicate instructions: three labels ("Close the drawer" / "close the
+  drawer" / "closed the drawer") are the *same* task, and further variants (the
+  four `*box flap(s)` labels, "close fridge" / "close low fridge") are
+  near-duplicates, so the **effective class count is ≤ 18, likely lower** —
+  Top-5 is partly duplicate labels absorbing errors. A de-duplicated gallery is
+  **not** the fix: it would lift apparent Top-1 but attacks label confusion, not
+  the real mechanism (intra-episode embedding redundancy), so the methods would
+  stay indistinguishable. The mechanism is addressed by the diagnostic suite
+  below, not by cleaning the gallery.
+- **Pooling is order-invariant by construction**, not merely "selection-robust":
+  it maps any keyframe set to an unordered bag and averages, so optical-flow's
+  central hypothesis — settled frames carry task structure, a property of frame
+  *sequence* — cannot be tested by this aggregator even in principle. This is a
+  design property, not a tunable risk. A max-style or sequence-aware pooling
+  could be more sensitive; pooling is the pinned protocol (`CLAUDE.md`), so a
+  sensitivity analysis is a deliberate, documented decision (proposed, not done
+  here).
 - **Single dataset / single view / lossy decode.** BridgeData v2 only,
   `image_0` only, AV1-decoded (constant across conditions; see
   `docs/decisions.md`).
@@ -167,6 +199,14 @@ not a failure of the CV methods.
   is stable across tasks but the absolute counts are not a fixed property.
 - **AWE not included.** Trajectory-geometry selection (AWE) uses robot state and
   is outside the pure-CV scope unless explicitly approved (`docs/decisions.md`).
+- **Saturation is currently argued, not proven.** The scene-dominance mechanism
+  is so far narrative. A **diagnostic suite** is planned to make it quantitative:
+  intra- vs inter-episode-same-task vs inter-task cosine-similarity
+  distributions; a **K=1** (single-frame) baseline; a **consecutive-block**
+  worst-case-coverage control; an **oracle** (label-aware) upper bound on
+  retrieval; and **bootstrap CIs + a paired permutation test** across the
+  existing grid. All reuse the cached frame embeddings and add no policy,
+  rollout, robot-state signal, or new dataset — in scope for Variant C.
 
 ## 6. Artifacts
 
