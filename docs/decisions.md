@@ -56,9 +56,9 @@ to the original camera RGB.
 the AV1 compression as-is. No attempt to source raw frames.
 
 **Rationale.** Every keyframe-selection strategy in this study (uniform, optical
-flow, attention saliency, random) decodes the *same* AV1 frames, so any AV1
-compression artifact is a constant applied identically across all four
-extractors and across both query and gallery demos in retrieval. A constant
+flow, attention saliency, frame difference, random) decodes the *same* AV1
+frames, so any AV1 compression artifact is a constant applied identically across
+all extractors and across both query and gallery demos in retrieval. A constant
 shared by all conditions cancels out of a *comparative* evaluation — it cannot
 advantage or disadvantage one extractor relative to another. Raw RGB is simply
 not on offer from this mirror, so the alternative is no pixels at all.
@@ -88,7 +88,7 @@ Recorded here so the addition to the pinned 3-metric protocol is on the record.
 compression ratio) is selection-invariant on scene-dominated BridgeData v2: the
 Tier-1 diagnostics show intra-episode frame similarity (median ~0.917) is
 essentially equal to inter-episode-same-task similarity (~0.914), so mean-pooled
-retrieval cannot resolve *which* frames a method keeps (0/17 method pairs
+retrieval cannot resolve *which* frames a method keeps (0/40 method pairs
 significant; the Tier-3 pooling sweep shows max- and best-match aggregation do
 not separate them either). The external audit's central recommendation is a
 metric that is selection-sensitive *by construction*, so the negative retrieval

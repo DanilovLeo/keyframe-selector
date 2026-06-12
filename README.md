@@ -10,8 +10,9 @@ policy.
 
 > Scope is deliberately narrow. There is **no** policy fine-tuning, **no** simulator
 > rollouts, **no** task-success-rate evaluation, and **no** robot-state signals
-> (velocity, gripper, joint angles) used for selection. See `CLAUDE.md` and
-> `docs/decisions.md` for the full scope contract and the reasoning behind it.
+> (velocity, gripper, joint angles) used for selection. See `docs/decisions.md`
+> and the **Scope guardrails** section below for the full scope contract and the
+> reasoning behind it.
 
 ## Methods
 
@@ -38,9 +39,11 @@ together across a compression sweep:
    embedding and the CLIP text embedding of the task instruction.
 3. **Frame compression ratio** (K / T) — reported alongside the above, never alone.
 
-Embeddings use **CLIP ViT-L/14 (openai)**, pinned in `configs/models.yaml`. The
-sweep covers **K ∈ {4, 8, 16, 32}** with random seeds **{42, 123, 456}**, set in
-`scripts/run_retrieval_eval.py`.
+Embeddings use **CLIP ViT-L-14-quickgelu (openai)**, pinned in
+`configs/models.yaml` (the `-quickgelu` variant matches the activation the OpenAI
+weights were trained with — loading them into a plain-GELU `ViT-L-14` is a silent
+mismatch; see the config comment). The sweep covers **K ∈ {4, 8, 16, 32}** with
+random seeds **{42, 123, 456}**, set in `scripts/run_retrieval_eval.py`.
 
 ## Dataset
 
@@ -59,7 +62,10 @@ pip install -r requirements.txt
 pip install --only-binary :all: av==13.1.0
 ```
 
-For GPU runs on RunPod (A100), follow `RUNPOD.md` end to end.
+The selection and embedding steps (CLIP / RAFT / DINOv2 inference) need a GPU; the
+diagnostic suite in `docs/methods.md` §5 is CPU-only and runs from a cached
+embedding bundle (see **Reproduce** below). GPU host setup is environment-specific
+and not committed.
 
 ## Quick start
 
@@ -76,6 +82,35 @@ python scripts/run_retrieval_eval.py \
     --root ~/.cache/lerobot --embed_cache ~/.cache/clip_embeds --output_dir results
 ```
 
+## Reproduce
+
+The headline retrieval grid and the §5 diagnostics reproduce in two phases. Phase 1
+needs a GPU; phase 2 is pure NumPy/pandas and runs anywhere.
+
+```bash
+# --- Phase 1 (GPU): retrieval grid, consistency stats, cached embeddings ---
+python scripts/run_retrieval_eval.py \
+    --root ~/.cache/lerobot --embed_cache ~/.cache/clip_embeds --output_dir results
+python scripts/run_consistency.py --root ~/.cache/lerobot
+
+# Export the frozen per-frame embedding bundle the diagnostics read:
+python scripts/export_eval_bundle.py \
+    --root ~/.cache/lerobot --embed_cache ~/.cache/clip_embeds --out_dir results/bundle
+
+# --- Phase 2 (CPU only): the §5 diagnostic suite, off the cached bundle ---
+for d in similarity_distributions extra_baselines stats pooling_sensitivity coverage_error; do
+    python scripts/diagnostics/$d.py --bundle results/bundle --out_dir results
+done
+
+# Retrieval grid tables + figures (the diagnostics write their own tables):
+python scripts/make_tables.py --results_dir results
+python scripts/plot_results.py
+```
+
+The exported bundle (`results/bundle/`, ~150–250 MB) is gitignored and re-created
+by the export step; the diagnostic output tables under `results/tables/` are
+committed.
+
 ## Project layout
 
 ```
@@ -84,12 +119,13 @@ src/
                 attention (DINOv2), frame_diff
   data/         BridgeData V2 loader (per-episode streaming) + Demo types
   evaluation/   retrieval accuracy, CLIP similarity, pooled embeddings
-scripts/        preflight_check, run_retrieval_eval, run_consistency, plot_results
+scripts/        preflight_check, run_retrieval_eval, run_consistency,
+                export_eval_bundle, make_tables, plot_results
+  diagnostics/  CPU-only suite reading the exported bundle (methods.md §5)
 configs/        models.yaml (pinned CLIP / DINOv2 / RAFT identifiers)
-docs/           decisions.md (pinned decisions and scope reminders)
-results/        JSON metrics and plots (committed)
+docs/           decisions.md (pinned decisions), methods.md (methods & results)
+results/        JSON metrics, tables, and plots (committed)
 archive/        quarantined drift-era code and docs — read-only, do not import
-tests/          pytest suite (primarily extractors)
 ```
 
 ## Scope guardrails
@@ -98,4 +134,5 @@ This repository was previously drifted into VLA fine-tuning territory and pulled
 back. To prevent re-drift, the following are out of scope and must not be added
 without explicit supervisor approval: policy fine-tuning / LoRA / training loops,
 simulator rollouts and task-success evaluation, robot-state selection signals, and
-new datasets or heavyweight dependencies. The authoritative contract is `CLAUDE.md`.
+new datasets or heavyweight dependencies. The pinned decisions and scope reminders
+that govern this repository live in `docs/decisions.md`.

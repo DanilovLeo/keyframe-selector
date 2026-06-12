@@ -3,8 +3,8 @@
 Working draft of the methods/results section. Scope is **Variant C**: the visual
 branch of demonstration encoding, studied in isolation with **CV-only keyframe
 selection on pixels** and an **intrinsic, retrieval-based** evaluation. No policy
-training, no rollouts, no success-rate metrics. See `docs/brief.md` for the
-approved brief and `docs/decisions.md` for pinned decisions.
+training, no rollouts, no success-rate metrics. See `docs/decisions.md` for the
+pinned decisions and scope reminders that govern this work.
 
 ---
 
@@ -64,8 +64,10 @@ Two K regimes are used:
 - **Sweep:** K ∈ {4, 8, 16, 32}; metrics reported across the sweep, never at a
   single K.
 
-Reproduction commands are in `RUNPOD.md` (§5–§7). Figures: `scripts/plot_results.py`;
-tables: `scripts/make_tables.py`.
+Reproduction commands are in the **Reproduce** section of `README.md` (a GPU
+phase for embeddings, then the CPU-only diagnostic suite). Figures:
+`scripts/plot_results.py`; tables: `scripts/make_tables.py` plus each diagnostic
+in `scripts/diagnostics/`.
 
 ---
 
@@ -91,7 +93,7 @@ baseline's own seed-to-seed std, and the single best cell is `random_k8`
 (0.839), i.e. noise. With only 178 queries the binomial 95% CI on a Top-1 of
 ~0.82 is ≈ ±0.056 — *wider than the entire between-method spread* — so no method
 is statistically distinguishable from any other (proper bootstrap CIs and a
-paired permutation test confirm this in §5.4 — 0/17 method pairs are significant
+paired permutation test confirm this in §5.4 — 0/40 method pairs are significant
 at p < 0.05). CLIP
 image–text similarity is flat at **~0.209–0.210** across all methods and all K;
 absolute CLIP-sim values are compressed and incomparable, so it carries no
@@ -256,9 +258,12 @@ on the Top-1 grid (`results/tables/retrieval_cis.md`,
 
 - Every method × K Top-1 CI overlaps every other; point estimates span only
   0.803 (optical_flow K=4) to 0.839 (random K=8).
-- **0 of 17** comparisons reach p < 0.05. The smallest p-value is 0.056
-  (random K=8 vs uniform K=8); the single largest gap anywhere in the grid
-  (optical_flow vs frame_diff at K=4, Δ = 0.034) gives p = 0.11.
+- **0 of 40** comparisons reach p < 0.05 — every method pair at every K, the full
+  C(5,2)×4 grid. The smallest p-value is 0.055 (uniform vs random K=8); the
+  single largest gap anywhere in the grid (optical_flow vs frame_diff at K=4,
+  Δ = 0.034) gives p = 0.11. With zero uncorrected rejections, any
+  multiple-comparison correction (Bonferroni, Benjamini–Hochberg) can only raise
+  these p-values, so the null is unaffected.
 
 Every "X beats Y" reading in the grid — including the `frame_diff_k4 = 0.837`
 and `random_k8 = 0.839` peaks — is inside the noise.
@@ -291,16 +296,25 @@ methods:
 - The **consecutive-block** control is far worst at every K (e.g. K=4 mean 0.077
   vs ~0.046–0.050) — the metric sees the pathological coverage that retrieval
   scored as identical (§5.2).
-- **uniform** is best or near-best at every low-to-mid K (even spreading
+- **uniform** is significantly the best coverage at K=4/8/16 (even spreading
   minimises coverage error almost by construction).
 - **optical_flow** is the worst non-degenerate method at every K (it clusters
-  anchors on "settled" frames, leaving trajectory gaps); attention/frame_diff
-  sit just above uniform and match it by K=32.
+  anchors on "settled" frames, leaving trajectory gaps).
+- **attention** and **frame_diff** track uniform closely at low K, then
+  *overtake* it at K=32 (0.0048 / 0.0043 vs uniform 0.0060): once the budget is
+  generous, content-adaptive anchors cover the trajectory slightly better than
+  even spacing.
 
-The honest reading is that adaptive selection **trades episode coverage for
-saliency**: a metric sensitive to *which* frames are kept does distinguish the
-methods, and it favours even spreading over content-adaptive clustering. This is
-the selection-sensitive companion the retrieval metric structurally cannot be.
+Unlike retrieval, these differences are real, not noise. Paired sign-flip
+permutation tests on the per-episode mean-coverage differences (863 paired
+episodes, `results/tables/coverage_significance.md`) make **every** method-vs-uniform
+gap significant at p < 0.05 — consecutive-block and optical_flow significantly
+*worse* at every K, attention/frame_diff significantly *better* than uniform at
+K=32. The honest reading is that adaptive selection **trades episode coverage for
+saliency**: a metric sensitive to *which* frames are kept distinguishes the
+methods decisively (0/40 in retrieval vs all-significant here), and it favours
+even spreading at tight budgets, content-adaptive anchors at generous ones. This
+is the selection-sensitive companion the retrieval metric structurally cannot be.
 
 ---
 
@@ -335,7 +349,7 @@ the selection-sensitive companion the retrieval metric structurally cannot be.
 - **Saturation is proven, not just argued (§5).** The scene-dominance mechanism
   is now quantitative: intra-episode similarity ≈ the inter-task gap (§5.1); one
   frame suffices and a degenerate block is indistinguishable (§5.2); the oracle
-  ceiling sits 10–13 points above every deployable method (§5.3); 0/17 method
+  ceiling sits 10–13 points above every deployable method (§5.3); 0/40 method
   pairs are significant (§5.4); and the invariance survives max- and best-match
   pooling (§5.5). All reuse the cached frame embeddings and add no policy,
   rollout, robot-state signal, or new dataset — in scope for Variant C.
@@ -357,9 +371,10 @@ results/tables/consistency_aggregate.* per-extractor aggregate (md + csv)
 results/tables/similarity_distributions.*  intra/inter similarity medians (§5.1)
 results/tables/extra_baselines.*       K=1 / consecutive-block / oracle (§5.2–5.3)
 results/tables/retrieval_cis.*         bootstrap 95% CIs on the grid (§5.4)
-results/tables/retrieval_permutation.* paired permutation tests (§5.4)
+results/tables/retrieval_permutation.* paired permutation tests, all 40 pairs (§5.4)
 results/tables/pooling_sensitivity.*   mean/max/best-match grid (§5.5)
 results/tables/coverage_error.*        coverage error (§5.6)
+results/tables/coverage_significance.* paired permutation tests on coverage (§5.6)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
