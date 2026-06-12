@@ -21,8 +21,16 @@ better. The consecutive-block control (all K frames from the episode start) is
 included as the key contrast: it should score far worse than evenly-spread
 selection, even though mean-pooled retrieval cannot distinguish it.
 
+Because coverage error is the one metric that separates the methods (unlike
+retrieval), we also report paired significance: for each method vs the uniform
+baseline at every K, a two-sided sign-flip permutation test on the per-episode
+mean-coverage differences (863 paired episodes). diff = method - uniform, so a
+positive diff means the method covers worse than uniform and a negative diff
+means it covers better.
+
 Outputs:
   results/tables/coverage_error.{md,csv}
+  results/tables/coverage_significance.{md,csv}
 
 Usage (from keyframe-selector/):
     python scripts/diagnostics/coverage_error.py --bundle results/bundle --out_dir results
@@ -81,6 +89,32 @@ def coverage_for_rule(b: Bundle, idx_fn) -> tuple[float, float, int]:
     return float(np.mean(means)), float(np.mean(maxes)), len(means)
 
 
+def episode_mean_array(b: Bundle, idx_fn) -> np.ndarray:
+    """Per-episode mean nearest-anchor coverage for one index rule."""
+    out = []
+    for ep in b.episode_indices:
+        E = b.frames(ep)
+        out.append(episode_coverage(E, idx_fn(ep, E.shape[0]))[0])
+    return np.asarray(out, dtype=float)
+
+
+def random_episode_mean_array(b: Bundle, k: int) -> np.ndarray:
+    """Per-episode mean coverage for random, averaged over the 3 seeds."""
+    arrs = [episode_mean_array(b, _label_indices(b, f"random_k{k}_s{s}"))
+            for s in RANDOM_SEEDS]
+    return np.mean(arrs, axis=0)
+
+
+def perm_test(a: np.ndarray, base: np.ndarray, rng, iters: int = 10000):
+    """Two-sided paired sign-flip permutation test on mean(a - base)."""
+    d = a - base
+    obs = float(d.mean())
+    signs = rng.choice([1.0, -1.0], size=(iters, len(d)))
+    perm = (signs * d).mean(axis=1)
+    p = float((np.abs(perm) >= abs(obs) - 1e-12).mean())
+    return obs, p
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bundle", default="results/bundle")
@@ -117,8 +151,30 @@ def main() -> None:
     df.to_csv(out / "tables" / "coverage_error.csv", index=False)
     _write_md(df, out / "tables" / "coverage_error.md")
 
+    # ---- paired significance: each method vs uniform, per K -------------- #
+    rng = np.random.default_rng(0)
+    sig_rows = []
+    for k in K_SWEEP:
+        uni = episode_mean_array(b, _label_indices(b, f"uniform_k{k}"))
+        for m in ["random", "optical_flow", "attention", "frame_diff", "consecutive_block"]:
+            if m == "random":
+                arr = random_episode_mean_array(b, k)
+            elif m == "consecutive_block":
+                arr = episode_mean_array(b, _consecutive_indices(k))
+            else:
+                arr = episode_mean_array(b, _label_indices(b, f"{m}_k{k}"))
+            obs, p = perm_test(arr, uni, rng)
+            sig_rows.append({"method": m, "vs": "uniform", "K": k,
+                             "diff_mean_cov": obs, "p_value": p,
+                             "sig_0.05": p < 0.05})
+    sig_df = pd.DataFrame(sig_rows)
+    sig_df.to_csv(out / "tables" / "coverage_significance.csv", index=False)
+    _write_sig_md(sig_df, out / "tables" / "coverage_significance.md")
+
     print("\n" + df.to_string(index=False))
-    print("\nwrote coverage_error.{md,csv}")
+    print("\n--- paired significance vs uniform (diff = method - uniform) ---")
+    print(sig_df.to_string(index=False))
+    print("\nwrote coverage_error.{md,csv} and coverage_significance.{md,csv}")
 
 
 def _write_md(df: pd.DataFrame, path: Path) -> None:
@@ -135,6 +191,24 @@ def _write_md(df: pd.DataFrame, path: Path) -> None:
             for row in df.itertuples(index=False)]
     banner = ("> Embedding-space coverage error (lower = better). Fourth intrinsic "
               "metric, reported alongside retrieval; see docs/decisions.md (2026-06-10).\n\n")
+    path.write_text(banner + "\n".join([head, sep, *body]) + "\n")
+
+
+def _write_sig_md(df: pd.DataFrame, path: Path) -> None:
+    cols = list(df.columns)
+    head = "| " + " | ".join(cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
+
+    def fmt(v):
+        if isinstance(v, float):
+            return "nan" if np.isnan(v) else f"{v:.4f}"
+        return str(v)
+
+    body = ["| " + " | ".join(fmt(v) for v in row) + " |"
+            for row in df.itertuples(index=False)]
+    banner = ("> Paired sign-flip permutation tests on per-episode mean coverage "
+              "(diff = method - uniform; negative = better than uniform, "
+              "positive = worse). 863 paired episodes.\n\n")
     path.write_text(banner + "\n".join([head, sep, *body]) + "\n")
 
 
