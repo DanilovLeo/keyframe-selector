@@ -141,6 +141,74 @@ marginal retrieval win.
 
 ---
 
+## 2026-06-12 — PRE-REGISTERED: residual-embedding de-saturation gate (Stage 1)
+
+**Status.** PRE-REGISTERED gate, written *before* the diagnostic runs. This entry
+fixes the PASS/FAIL rule and the expected outcome **both ways** so the decision
+cannot be rationalised after seeing the numbers. Stage 1 is an internal go/no-go
+diagnostic; promoting any *positive* residual result into the report body (a
+`methods.md` §5.7) is held pending supervisor sign-off (see
+`docs/supervisor_signoff_request.md`, item 4). A *negative* result is recorded as
+a one-paragraph caveat in `methods.md`.
+
+**Context.** §5.1 established that BridgeData v2 is scene-dominated: within-episode
+frame cosines (median ~0.917) are as high as inter-episode same-task means
+(~0.914) and well above the inter-task gap (~0.820). Because every frame
+embedding is dominated by the static scene, mean-pooling any subset lands in the
+same tight cone, so retrieval is selection-invariant (0/40 method pairs
+significant). The audit raised the natural question: does subtracting a
+per-episode scene anchor expose the residual *motion / change* signal that
+selection could then act on?
+
+**Decision.** Before any retrieval work, run a Stage-1 diagnostic
+(`scripts/diagnostics/residual_similarity.py`) that repeats the §5.1
+three-distribution analysis in residual space, for two anchor choices:
+- **Variant A** `r_t = normalize(e_t − e_0)` — anchor is the first frame.
+- **Variant B** `r_t = normalize(e_t − mean_t e_t)` — anchor is the episode mean.
+For each variant compute (1) intra-episode pairwise residual cosines, and (2)/(3)
+same-task / inter-task cosines between *episode-mean residuals*. Frame 0 in A
+yields a zero residual and is excluded; any residual with norm < 1e-6 is set to
+the zero vector and excluded from pairwise statistics. **Variant B's episode-mean
+residual is identically zero by construction** (the mean of `e_t − mean(e)` is 0),
+so B's inter-episode / inter-task panels are *undefined* and reported as empty
+with a note; B contributes only its intra-episode distribution.
+
+**Pre-registered decision rule (both ways).**
+- **PASS → run Stage 2** if, for the gate-bearing variant (A): intra-episode
+  residual similarity drops *clearly* below the inter-task level (the
+  within-episode cone widens past the task gap, so selection now has leverage)
+  **AND** inter-task structure survives (same-task episode-mean-residual pairs
+  remain more similar than cross-task pairs). Operationalised:
+  `median(intra_residual) < median(inter_task_residual)` by a margin ≥ 0.05, **and**
+  `median(same_task_residual) − median(inter_task_residual) ≥ 0.02`.
+- **FAIL → STOP, do not run Stage 2** if residuals are noise: intra-episode
+  residual cosines collapse toward 0 with no surviving task structure
+  (`same_task ≈ inter_task`, `|Δmedian| < 0.02`). On FAIL, record a one-paragraph
+  negative note in `methods.md` (residual de-saturation tried, did not recover
+  signal) and close the thread.
+
+**Why this is in scope.** Residuals are *arithmetic on frozen, already-cached
+CLIP embeddings* — `e_t − e_0` or `e_t − mean(e)`, then renormalise. No model is
+fit, nothing is trained, no parameter is learned, no reconstruction is performed.
+It is pixels-in (via the frozen encoder), indices/scalars-out — no policy, no
+robot state, no rollout, no new dataset, no new dependency, single view
+`image_0` only. Identical scope posture to the 2026-06-10 coverage-error metric.
+The only governance nuance: per the pending supervisor email, a *reported
+positive* residual result waits for sign-off, hence Stage 1 is gated and Stage 2
+is sequenced late.
+
+**Consequences.**
+- New diagnostic `scripts/diagnostics/residual_similarity.py`; outputs
+  `results/tables/residual_similarity.{md,csv}` and
+  `results/plots/fig_residual_similarity.{pdf,png}`. Reuses the cached bundle;
+  numpy-only; no GPU.
+- Does not touch the pinned retrieval pipeline or any committed result table.
+- On PASS, Stage 2 (`residual_retrieval.py`, `methods.md` §5.7) is queued behind
+  the other CPU tasks per the mandated order; on FAIL, only the negative note is
+  added.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)

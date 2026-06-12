@@ -316,6 +316,36 @@ methods decisively (0/40 in retrieval vs all-significant here), and it favours
 even spreading at tight budgets, content-adaptive anchors at generous ones. This
 is the selection-sensitive companion the retrieval metric structurally cannot be.
 
+### 5.7 Residual embeddings do not de-saturate retrieval (pre-registered, negative)
+
+A natural follow-up to §5.1 is whether subtracting a per-episode *scene anchor*
+exposes a residual motion/change signal that selection could act on. This was run
+as a **pre-registered gate** (`docs/decisions.md`, 2026-06-12;
+`scripts/diagnostics/residual_similarity.py`,
+`results/tables/residual_similarity.md`,
+`results/plots/fig_residual_similarity.{pdf,png}`) with the PASS/FAIL rule fixed
+*before* the numbers were seen — the residual-retrieval stage would run only on a
+PASS. **The gate FAILED.** Residualising on the first frame (variant A,
+`e_t − e_0`) does partly de-saturate the within-episode representation — the
+intra-episode frame-pair cosine median falls 0.917 → 0.525 and its spread widens
+~4× (std 0.052 → 0.238), and weak task structure survives at the episode level
+(same-task net-displacement pairs 0.165 vs inter-task 0.069, Δ ≈ +0.095). But the
+pre-registered de-saturation bar — intra-episode residual similarity dropping
+clearly *below* the inter-task level — is not met (0.525 ≫ 0.069): within-episode
+residual directions stay far more aligned than the cross-task displacement gap,
+and the surviving ~0.09 same-vs-inter separation now rides on ~4× wider
+distributions (std ~0.22 vs raw ~0.056), so per-pair discriminability (gap /
+spread) is *worse*, not better, than raw space. Anchoring on the episode mean
+(variant B, `e_t − mean(e)`) is degenerate by construction — the episode-mean
+residual is identically zero, leaving no episode-level signature, and its
+intra-episode residual cosines centre near zero (median −0.077), i.e. noise.
+Residualising therefore trades scene-saturation for noise rather than recovering
+selection-relevant signal; per the pre-registered gate the residual-retrieval
+stage was **not** run. (Scope note: this is arithmetic on the frozen cached
+embeddings — no model fit, no training, no new data; promoting any *positive*
+residual result into the report body was reserved for supervisor sign-off, which
+the negative outcome moots.)
+
 ---
 
 ## 6. Threats to validity
@@ -375,6 +405,8 @@ results/tables/retrieval_permutation.* paired permutation tests, all 40 pairs (�
 results/tables/pooling_sensitivity.*   mean/max/best-match grid (§5.5)
 results/tables/coverage_error.*        coverage error (§5.6)
 results/tables/coverage_significance.* paired permutation tests on coverage (§5.6)
+results/tables/residual_similarity.*   residual-space similarity gate, FAIL (§5.7)
+results/plots/fig_residual_similarity.*  residual vs raw similarity distributions (§5.7)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -383,4 +415,5 @@ scripts/diagnostics/extra_baselines.py         §5.2–5.3
 scripts/diagnostics/stats.py                   §5.4
 scripts/diagnostics/pooling_sensitivity.py     §5.5
 scripts/diagnostics/coverage_error.py          §5.6
+scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)
 ```
