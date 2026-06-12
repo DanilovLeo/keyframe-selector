@@ -156,8 +156,16 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", default="~/.cache/lerobot",
                     help="HuggingFace/LeRobot cache root for BridgeDataLoader")
-    ap.add_argument("--embed_cache", default="~/.cache/kf_eval/clip_embeds",
-                    help="Directory of disk-cached CLIP frame embeddings")
+    ap.add_argument("--embed_cache", default=None,
+                    help="Directory of disk-cached frame embeddings. Default: "
+                         "~/.cache/kf_eval/<backbone>_embeds, a separate cache per "
+                         "backbone so CLIP and DINOv2 embeddings never collide.")
+    ap.add_argument("--backbone", choices=["clip", "dinov2"], default="clip",
+                    help="Retrieval embedding backbone. 'clip' is the pinned primary "
+                         "(ViT-L/14); 'dinov2' is the Task 4 vision-only cross-encoder "
+                         "check (vit_small_patch14_dinov2). Selection extractors are "
+                         "backbone-independent, so keyframes.jsonl is identical either "
+                         "way; only frame_embeddings.npz changes.")
     ap.add_argument("--min_demos", type=int, default=MIN_DEMOS)
     ap.add_argument("--max_tasks", type=int, default=MAX_TASKS)
     ap.add_argument("--max_episodes", type=int, default=MAX_EPISODES)
@@ -172,8 +180,12 @@ def main() -> None:
     args = ap.parse_args()
 
     cfg = load_model_config()
-    model_id = f"{cfg['clip']['model']}_{cfg['clip']['pretrained']}"
-    embed_cache = FrameEmbeddingCache(args.embed_cache, model_id)
+    clip_model_id = f"{cfg['clip']['model']}_{cfg['clip']['pretrained']}"
+    dinov2_model_id = cfg["dinov2"]["timm_model"]
+    model_id = clip_model_id if args.backbone == "clip" else dinov2_model_id
+    embed_cache_dir = args.embed_cache or f"~/.cache/kf_eval/{args.backbone}_embeds"
+    embed_cache = FrameEmbeddingCache(embed_cache_dir, model_id)
+    print(f"Backbone        : {args.backbone}")
     print(f"Model id        : {model_id}")
     print(f"Embedding cache : {embed_cache}")
     print(f"Dump indices    : {args.dump_indices}")
@@ -191,20 +203,27 @@ def main() -> None:
     if args.dump_indices:
         print(f"Extractor grid  : {len(grid)} configs")
 
-    clip = None  # (model, preprocess, device) — loaded lazily only on cache miss
+    encoder = None  # (model, preprocess, device, embed_fn) — lazily loaded on miss
 
     def embed_on_miss(images: np.ndarray) -> np.ndarray:
-        nonlocal clip
+        nonlocal encoder
         if not args.allow_embed:
             sys.exit("Cache miss and --allow_embed not set; aborting so we never "
                      "silently recompute embeddings with a different setup.")
-        if clip is None:
-            from src.evaluation.retrieval import load_clip, embed_all_frames  # noqa: PLC0415
-            m, pre, _tok, dev = load_clip(model_name=cfg["clip"]["model"],
-                                          pretrained=cfg["clip"]["pretrained"])
-            clip = (m, pre, dev, embed_all_frames)
-        m, pre, dev, embed_all_frames = clip
-        return embed_all_frames(images, m, pre, dev)
+        if encoder is None:
+            if args.backbone == "clip":
+                from src.evaluation.retrieval import (  # noqa: PLC0415
+                    load_clip, embed_all_frames)
+                m, pre, _tok, dev = load_clip(model_name=cfg["clip"]["model"],
+                                              pretrained=cfg["clip"]["pretrained"])
+                encoder = (m, pre, dev, embed_all_frames)
+            else:
+                from src.evaluation.retrieval import (  # noqa: PLC0415
+                    load_dinov2, embed_all_frames_dinov2)
+                m, pre, dev = load_dinov2(timm_model=dinov2_model_id)
+                encoder = (m, pre, dev, embed_all_frames_dinov2)
+        m, pre, dev, embed_fn = encoder
+        return embed_fn(images, m, pre, dev)
 
     # ---- main loop -------------------------------------------------------- #
     out_dir = Path(args.out_dir)
@@ -270,8 +289,10 @@ def main() -> None:
             "min_demos": args.min_demos,
             "max_tasks": args.max_tasks,
             "max_episodes": args.max_episodes,
-            "clip_model": model_id,
-            "dinov2_model": cfg["dinov2"]["timm_model"],
+            "retrieval_backbone": args.backbone,
+            "embedding_model": model_id,
+            "clip_model": clip_model_id,
+            "dinov2_model": dinov2_model_id,
             "random_seeds": RANDOM_SEEDS,
             "K_sweep": K_SWEEP,
             "methods": METHODS,

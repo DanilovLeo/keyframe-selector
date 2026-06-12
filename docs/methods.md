@@ -482,4 +482,14 @@ scripts/diagnostics/coverage_error.py          §5.6
 scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)
 scripts/diagnostics/crossover_analysis.py      K=32 coverage crossover (decisions.md only)
 scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
+scripts/diagnostics/dinov2_retrieval.py        Task 4 DINOv2 cross-backbone check (pending GPU)
+```
+
+Pending GPU re-embedding (pre-registered, decisions.md 2026-06-12):
+```
+export_eval_bundle.py --backbone dinov2   DINOv2-embedded parallel bundle (Task 4)
+results/tables/dinov2_similarity.*         DINOv2 saturation distributions (Task 4)
+results/tables/dinov2_retrieval.*          DINOv2 Top-1/Top-5 grid + boot CIs (Task 4)
+results/tables/dinov2_permutation.*        DINOv2 40-pair permutation grid (Task 4)
+results/bundle_100t/ + results_100t/       100-task scale-up bundle + suite (Task 2)
 ```

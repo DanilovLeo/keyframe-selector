@@ -447,13 +447,25 @@ sign-off list as "second retrieval backbone (DINOv2), same data/view, no new
 dependency."
 
 **Consequences.**
-- New artifacts: `results/bundle_dinov2/`, `results/tables/dinov2_similarity.*`,
-  `results/tables/dinov2_retrieval.*`. The diagnostics re-use the existing
-  numpy-only scripts via `--bundle results/bundle_dinov2` (they read the grid from
-  `bundle_meta.json`), so no diagnostic code changes are needed beyond a thin
-  driver. CLIP tables and all previously reported numbers are untouched.
-- Blocked on GPU for the re-embedding step; the export reuses the existing
-  `--allow_embed` path with a DINOv2 model id and a distinct cache key.
+- **Code (landed, CPU-validated):** `export_eval_bundle.py` gains a
+  `--backbone {clip,dinov2}` flag (default `clip`, byte-identical to before);
+  `dinov2` swaps in `src/evaluation/retrieval.py::{load_dinov2,
+  embed_all_frames_dinov2}` (same timm recipe as the attention extractor) and a
+  distinct embedding cache (`~/.cache/kf_eval/dinov2_embeds`). The bundle meta now
+  stamps `retrieval_backbone` / `embedding_model`. New thin driver
+  `scripts/diagnostics/dinov2_retrieval.py` re-uses the CLIP-side
+  `similarity_distributions` + `stats` machinery and writes
+  `dinov2_similarity.*`, `dinov2_retrieval.*` (boot CIs), `dinov2_permutation.*`,
+  plus the PERSISTS/BREAKS verdict. Validated on the CLIP bundle: it reproduces
+  §5.1 medians and the `retrieval_cis` grid exactly.
+- **GPU-blocked (the only remaining step):** re-embed with
+  `python scripts/export_eval_bundle.py --backbone dinov2 --out_dir
+  results/bundle_dinov2 --allow_embed`, then
+  `python scripts/diagnostics/dinov2_retrieval.py --bundle results/bundle_dinov2
+  --out_dir results_dinov2`. Selection extractors are backbone-independent, so the
+  DINOv2 bundle's `keyframes.jsonl` is identical to CLIP's; only
+  `frame_embeddings.npz` (384-dim) differs. CLIP tables and all previously
+  reported numbers are untouched.
 
 ---
 

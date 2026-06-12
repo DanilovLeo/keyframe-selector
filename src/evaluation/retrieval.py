@@ -96,6 +96,66 @@ def embed_all_frames(
     return np.concatenate(all_embs, axis=0)            # (T, D)
 
 
+# ------------------------------------------------------------------
+# DINOv2 backbone (alternative retrieval embedding; Task 4)
+# ------------------------------------------------------------------
+
+def load_dinov2(
+    timm_model: str = "vit_small_patch14_dinov2",
+    device: Optional[str] = None,
+):
+    """Load a DINOv2 image encoder via timm as an alternative retrieval backbone.
+
+    Pre-registered in docs/decisions.md (2026-06-12) as a vision-only
+    cross-encoder check on the CLIP-based saturation finding. Uses the *same*
+    timm loading recipe as src/extractors/attention.py (num_classes=0 ->
+    forward() returns the pooled CLS embedding, plus the model's own
+    resolve/create_transform preprocessing), so the embeddings here match the
+    backbone already used for attention saliency. No text tower (DINOv2 has
+    none): there is deliberately no CLIP-text similarity counterpart.
+
+    Returns:
+        (model, preprocess, device)  -- note: no tokenizer, unlike load_clip().
+    """
+    import timm  # noqa: PLC0415
+
+    dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    model = timm.create_model(timm_model, pretrained=True, num_classes=0)
+    model = model.to(dev).eval()
+    data_cfg = timm.data.resolve_model_data_config(model)
+    preprocess = timm.data.create_transform(**data_cfg, is_training=False)
+    return model, preprocess, dev
+
+
+def embed_all_frames_dinov2(
+    images: np.ndarray,
+    model,
+    preprocess,
+    device,
+    batch_size: int = 32,
+) -> np.ndarray:
+    """Embed every frame with DINOv2 and return (T, D) float32 L2-normalised array.
+
+    Mirrors embed_all_frames() (CLIP) so the export's embed-on-miss path and the
+    bundle layout are identical regardless of backbone; only the encoder and the
+    output dimensionality (DINOv2-small = 384) differ.
+    """
+    T = len(images)
+    all_embs: List[np.ndarray] = []
+
+    for start in range(0, T, batch_size):
+        batch_np = images[start : start + batch_size]
+        tensors = torch.stack(
+            [preprocess(Image.fromarray(img).convert("RGB")) for img in batch_np]
+        ).to(device)
+        with torch.no_grad():
+            emb = model(tensors)                         # (B, D) pooled CLS
+            emb = Fn.normalize(emb.float(), dim=-1)
+        all_embs.append(emb.cpu().numpy())
+
+    return np.concatenate(all_embs, axis=0)             # (T, D)
+
+
 def pool_demo_embedding(
     frame_embs: np.ndarray,
     keyframe_indices: np.ndarray,
