@@ -91,6 +91,12 @@ _EXP = load_experiment_config()
 K_SWEEP = _EXP["k_sweep"]
 RANDOM_SEEDS = _EXP["random_seeds"]
 METHODS = _EXP["methods"]
+# Dataset sampling defaults (single source of truth: configs/experiment.yaml);
+# the CLI flags below override these for ad-hoc runs.
+_SAMPLING = _EXP.get("sampling", {})
+MIN_DEMOS = _SAMPLING.get("min_demos", 20)
+MAX_TASKS = _SAMPLING.get("max_tasks", 20)
+MAX_EPISODES = _SAMPLING.get("max_episodes", 50)
 
 
 # --------------------------------------------------------------------------- #
@@ -152,9 +158,9 @@ def main() -> None:
                     help="HuggingFace/LeRobot cache root for BridgeDataLoader")
     ap.add_argument("--embed_cache", default="~/.cache/kf_eval/clip_embeds",
                     help="Directory of disk-cached CLIP frame embeddings")
-    ap.add_argument("--min_demos", type=int, default=20)
-    ap.add_argument("--max_tasks", type=int, default=20)
-    ap.add_argument("--max_episodes", type=int, default=50)
+    ap.add_argument("--min_demos", type=int, default=MIN_DEMOS)
+    ap.add_argument("--max_tasks", type=int, default=MAX_TASKS)
+    ap.add_argument("--max_episodes", type=int, default=MAX_EPISODES)
     ap.add_argument("--out_dir", default="results/bundle")
     ap.add_argument("--no_indices", dest="dump_indices", action="store_false",
                     help="Skip the extractor grid; export embeddings + metadata only "

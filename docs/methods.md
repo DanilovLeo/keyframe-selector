@@ -268,6 +268,24 @@ on the Top-1 grid (`results/tables/retrieval_cis.md`,
 Every "X beats Y" reading in the grid — including the `frame_diff_k4 = 0.837`
 and `random_k8 = 0.839` peaks — is inside the noise.
 
+#### 5.4.1 Equivalence test: how tight a "no difference" claim is the sample good for?
+
+The 0/40 permutation result above is *absence of evidence*, not *evidence of
+absence*. To turn it into a positive claim we pre-registered (decisions.md,
+2026-06-12) a paired two-one-sided-test (TOST) with margin **δ = 0.02** and a 90%
+CI on each pair's Top-1 difference; a pair is *equivalent* iff its 90% CI lies
+fully inside (−0.02, +0.02) (`scripts/diagnostics/equivalence.py`,
+`results/tables/equivalence_tost.md`). On the 20-task sample (n = 178 queries)
+only **7 of 40** pairs clear that bar, and 6 of those 7 sit at K = 32, where Top-1
+has already saturated. The 90% CI half-width is **median 0.0235, max 0.0406**: the
+sample certifies equivalence to ≈ ±0.04 but is *underpowered* for the pre-set
+±0.02. Crucially, no pair is certified *different* either (consistent with the
+0/40 above) — the verdict is "indistinguishable, bounded to ±0.04," not
+"identical." This is the pre-registered underpowered branch; it quantitatively
+motivates the 100-task scale-up (~5× queries shrinks the CI ~2.2× to ≈ ±0.013,
+below δ). The diagnostic takes `--bundle`, so it re-runs unchanged on the larger
+bundle when it lands.
+
 ### 5.5 Pooling sensitivity: saturation is not a mean-pool artifact
 
 Re-running the full method × K grid under two aggregators that do **not** average
@@ -444,6 +462,7 @@ results/tables/similarity_distributions.*  intra/inter similarity medians (§5.1
 results/tables/extra_baselines.*       K=1 / consecutive-block / oracle (§5.2–5.3)
 results/tables/retrieval_cis.*         bootstrap 95% CIs on the grid (§5.4)
 results/tables/retrieval_permutation.* paired permutation tests, all 40 pairs (§5.4)
+results/tables/equivalence_tost.*      paired TOST equivalence, δ=0.02 (§5.4.1)
 results/tables/pooling_sensitivity.*   mean/max/best-match grid (§5.5)
 results/tables/coverage_error.*        coverage error (§5.6)
 results/tables/coverage_significance.* paired permutation tests on coverage (§5.6)
@@ -457,6 +476,7 @@ scripts/diagnostics/bundle.py                  shared loader
 scripts/diagnostics/similarity_distributions.py  §5.1 + fig5
 scripts/diagnostics/extra_baselines.py         §5.2–5.3
 scripts/diagnostics/stats.py                   §5.4
+scripts/diagnostics/equivalence.py             §5.4.1 (pre-registered TOST, δ=0.02)
 scripts/diagnostics/pooling_sensitivity.py     §5.5
 scripts/diagnostics/coverage_error.py          §5.6
 scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)

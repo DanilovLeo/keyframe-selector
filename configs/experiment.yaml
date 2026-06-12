@@ -30,3 +30,19 @@ random_seeds: [42, 123, 456]
 # Methods compared. Order is the canonical reporting order. uniform/random are
 # the baselines; optical_flow/attention/frame_diff are the CV extractors.
 methods: [uniform, random, optical_flow, attention, frame_diff]
+
+# Dataset sampling for the bundle/eval. Previously these lived only as argparse
+# defaults duplicated in run_retrieval_eval.py and export_eval_bundle.py; they
+# are now the single source of truth here and are stamped into
+# results/bundle/bundle_meta.json so a bundle records exactly how it was sampled.
+# The CLI flags (--min_demos / --max_tasks / --max_episodes) still override these
+# for ad-hoc runs; when omitted, the scripts fall back to the values below.
+#   * min_demos    — keep only tasks with at least this many episodes.
+#   * max_tasks    — cap the number of tasks (20 = the primary reported sample;
+#                    raise to 100 for the scale-up bundle — same dataset/view, so
+#                    no new scope approval, see docs/decisions.md 2026-06-12).
+#   * max_episodes — cap episodes per task (matched-N across tasks).
+sampling:
+  min_demos: 20
+  max_tasks: 20
+  max_episodes: 50

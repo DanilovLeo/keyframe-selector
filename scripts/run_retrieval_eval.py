@@ -101,6 +101,12 @@ def load_experiment_config() -> dict:
 _EXP         = load_experiment_config()
 K_SWEEP      = _EXP["k_sweep"]
 RANDOM_SEEDS = _EXP["random_seeds"]
+# Dataset sampling defaults (single source of truth: configs/experiment.yaml);
+# the CLI flags below override these for ad-hoc runs.
+_SAMPLING    = _EXP.get("sampling", {})
+MIN_DEMOS    = _SAMPLING.get("min_demos", 20)
+MAX_TASKS    = _SAMPLING.get("max_tasks", 20)
+MAX_EPISODES = _SAMPLING.get("max_episodes", 50)
 
 
 def build_extractor_grid(cfg: dict) -> List[tuple]:
@@ -258,9 +264,9 @@ def main():
     parser.add_argument("--root",         default="~/.cache/lerobot")
     parser.add_argument("--embed_cache",  default="~/.cache/kf_eval/clip_embeds",
                         help="Directory for disk-cached CLIP frame embeddings")
-    parser.add_argument("--min_demos",    type=int, default=20)
-    parser.add_argument("--max_tasks",    type=int, default=20)
-    parser.add_argument("--max_episodes", type=int, default=50)
+    parser.add_argument("--min_demos",    type=int, default=MIN_DEMOS)
+    parser.add_argument("--max_tasks",    type=int, default=MAX_TASKS)
+    parser.add_argument("--max_episodes", type=int, default=MAX_EPISODES)
     parser.add_argument("--output_dir",   default="results")
     args = parser.parse_args()
 

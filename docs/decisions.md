@@ -341,6 +341,60 @@ addition is surfaced rather than assumed.)
 
 ---
 
+## 2026-06-12 — PRE-REGISTERED: TOST equivalence bound on the retrieval grid (δ = 0.02)
+
+**Status.** PRE-REGISTERED. Complements §5.4 (which reports no *difference*
+detected) with an *equivalence* test. A non-significant permutation result is
+absence of evidence, not evidence of absence; TOST (two one-sided tests) turns it
+into a positive claim — "the methods are equivalent to within ±δ" — when the
+(1−2α) CI lies inside (−δ, +δ). Part of Task 2; the 20-task half runs now on the
+existing bundle, the 100-task half waits for the GPU bundle.
+
+**Context.** §5.4 found 0/40 method-pair Top-1 differences significant. With only
+178 queries that could reflect low power rather than true equivalence. Fixing a
+margin δ and running TOST quantifies which it is.
+
+**Decision.** For every method pair at every K (the same C(5,2)×4 = 40 cells as
+§5.4), on paired per-query Top-1 correctness (random averaged over seeds),
+compute the paired mean difference Δ, its **90% CI** (Student-t, df = n−1), and
+`p_TOST = max(p_lower, p_upper)` against ±δ with **δ = 0.02**. Equivalence is
+declared at α = 0.05 iff the 90% CI ⊂ (−0.02, +0.02). Output
+`results/tables/equivalence_tost.{md,csv}` per bundle.
+
+**Pre-registered expectation (both ways).**
+- If the 90% CIs fit within ±0.02 → certify the methods equivalent within ±0.02
+  (strengthens §4.3's "no method beats uniform").
+- If CIs exceed ±0.02 (likely at n = 178, where the paired binary 90% half-width
+  is ≈ ±0.03) → report that the 20-task sample *bounds* differences to its
+  achievable CI but is underpowered to certify the tighter ±0.02, which
+  quantitatively motivates the 100-task scale-up (~5× queries shrink the CI ~2.2×
+  to ≈ ±0.013). Either way the numbers are reported honestly; δ is fixed in
+  advance.
+
+**Why this is in scope.** Paired arithmetic on the existing per-query correctness
+derived from the frozen cached embeddings; no model, no training, no robot state,
+no rollout, no new dataset, single view.
+
+**Consequences.**
+- New diagnostic `scripts/diagnostics/equivalence.py`; output
+  `results/tables/equivalence_tost.{md,csv}`. methods.md §5.4 gains an
+  equivalence paragraph (§5.4.1). The 100-task variant awaits the GPU bundle
+  (Task 2); the diagnostic takes `--bundle`, so it re-runs unchanged on it.
+
+**Result (2026-06-12) — UNDERPOWERED at ±0.02 (second branch fired, as
+anticipated).** On the 20-task bundle (n = 178 queries) only **7 / 40** pairs
+have their 90% CI fully inside (−0.02, +0.02); the rest are inconclusive (CI
+straddles a boundary), and *none* fall outside ±δ on both sides — i.e. no pair is
+certified *different* either, consistent with §5.4's 0/40. The 90% CI half-width
+is **median 0.0235, max 0.0406**, so the sample as-is certifies equivalence only
+to ≈ ±0.04, not the pre-set ±0.02. The 7 equivalent pairs cluster at K = 32 (6 of
+7), where Top-1 has saturated and per-query differences are tiny. This is the
+predicted outcome and quantitatively motivates the 100-task scale-up (~5× queries
+→ CI ≈ ±0.013 < δ). No goalposts moved: δ stayed 0.02; the honest read is "bounded
+to ±0.04, underpowered for ±0.02." methods.md §5.4.1 records this.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)
