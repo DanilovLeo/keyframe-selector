@@ -395,6 +395,68 @@ to ±0.04, underpowered for ±0.02." methods.md §5.4.1 records this.
 
 ---
 
+## 2026-06-12 — PRE-REGISTERED: DINOv2 retrieval backbone (cross-encoder check on the saturation finding)
+
+**Status.** PRE-REGISTERED, GPU-blocked (re-embedding needs the GPU; the
+diagnostic/analysis path stays numpy-only). Part of Task 4. Pinned identifier
+already in `configs/models.yaml` (`dinov2.timm_model = vit_small_patch14_dinov2`,
+ViT-S/14, 384-dim); timm is already a project dependency and DINOv2 is already
+stamped into `bundle_meta.json` as provenance — **no new dependency, no new
+dataset, no new view.**
+
+**Context.** §5.1–§5.5 show task retrieval is saturated and selection-invariant
+under **CLIP ViT-L/14** embeddings: intra-episode frame cosine (0.917) ≈
+inter-episode same-task (0.914) ≫ inter-task (0.820), so scene similarity
+dominates and no selection method separates. A live alternative explanation is
+that this is a **CLIP-specific artifact** — CLIP is caption/scene-biased by its
+contrastive image–text pretraining, which could inflate same-scene similarity. A
+self-supervised, vision-only backbone (DINOv2) is the natural cross-encoder
+control: if saturation persists under DINOv2, it is a property of the *data*
+(near-identical frames within a BridgeData episode), not of CLIP.
+
+**Decision.** Re-embed the **same 20-task set, same `image_0` view** with DINOv2
+under a **separate embedding-cache key** (so CLIP caches are untouched), export a
+parallel bundle (`results/bundle_dinov2/`), and re-run the saturation + retrieval
+diagnostics: similarity distributions and the Top-1/Top-5 method×K grid with
+bootstrap CIs and the paired permutation grid. Outputs
+`results/tables/dinov2_similarity.{md,csv}` and
+`results/tables/dinov2_retrieval.{md,csv}`. **No CLIP↔text similarity metric**
+(DINOv2 has no text tower; the CLIP-text metric stays CLIP-only and is unchanged).
+CLIP remains the pinned primary retrieval backbone (CLAUDE.md); DINOv2 is an
+additional analysis backbone, not a replacement.
+
+**Pre-registered expectation (both ways).**
+- **If DINOv2 also saturates** (intra ≈ inter-task gap, between-method Top-1
+  spread inside the binomial band, 0/40-style null) → confirms the saturation and
+  selection-invariance are **data-intrinsic**, robust across a contrastive and a
+  self-supervised encoder. Strengthens §4.3/§5.1 and closes the "CLIP artifact"
+  threat. Record as a new methods subsection (cross-backbone replication).
+- **If DINOv2 de-saturates** (inter-task gap widens, a selection method separates
+  beyond CIs, ≥1/40 significant) → the saturation is **CLIP-specific** and
+  selection signal is recoverable under a vision-only encoder. This would be a
+  genuinely positive result: it reframes §4–§5 as backbone-dependent and warrants
+  promoting DINOv2 to a co-primary backbone (with supervisor notice). Either way
+  the numbers are reported honestly; the decision rule is fixed in advance.
+
+**Why this is in scope.** Pixels-only CV image encoder (no text, no robot state,
+no rollout, no fine-tuning); same dataset, same single view; the model and its
+dependency are already pinned. The only methodological addition is using an
+**already-pinned** encoder as a second retrieval backbone for a robustness check —
+documented here, sanctioned by the Task 4 brief. Flagged for the supervisor
+sign-off list as "second retrieval backbone (DINOv2), same data/view, no new
+dependency."
+
+**Consequences.**
+- New artifacts: `results/bundle_dinov2/`, `results/tables/dinov2_similarity.*`,
+  `results/tables/dinov2_retrieval.*`. The diagnostics re-use the existing
+  numpy-only scripts via `--bundle results/bundle_dinov2` (they read the grid from
+  `bundle_meta.json`), so no diagnostic code changes are needed beyond a thin
+  driver. CLIP tables and all previously reported numbers are untouched.
+- Blocked on GPU for the re-embedding step; the export reuses the existing
+  `--allow_embed` path with a DINOv2 model id and a distinct cache key.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)
