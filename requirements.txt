@@ -2,6 +2,7 @@ numpy
 h5py
 matplotlib
 scipy
+pyyaml
 torch
 torchvision>=0.13
 pandas

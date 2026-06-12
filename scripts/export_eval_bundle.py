@@ -70,16 +70,27 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.evaluation.cache import FrameEmbeddingCache
 
 _CONFIG_PATH = Path(__file__).parent.parent / "configs" / "models.yaml"
-
-# Grid constants — kept identical to scripts/run_retrieval_eval.py so the bundle
-# reproduces the published configs exactly.
-K_SWEEP = [4, 8, 16, 32]
-RANDOM_SEEDS = [42, 123, 456]
+_EXP_CONFIG_PATH = Path(__file__).parent.parent / "configs" / "experiment.yaml"
 
 
 def load_model_config() -> dict:
     with open(_CONFIG_PATH) as f:
         return yaml.safe_load(f)
+
+
+def load_experiment_config() -> dict:
+    with open(_EXP_CONFIG_PATH) as f:
+        return yaml.safe_load(f)
+
+
+# Grid constants — single source of truth: configs/experiment.yaml. The same
+# file drives scripts/run_retrieval_eval.py, so the bundle reproduces the
+# published configs exactly. METHODS is stamped into bundle_meta.json so the
+# diagnostics read the grid back from the bundle (not the yaml).
+_EXP = load_experiment_config()
+K_SWEEP = _EXP["k_sweep"]
+RANDOM_SEEDS = _EXP["random_seeds"]
+METHODS = _EXP["methods"]
 
 
 # --------------------------------------------------------------------------- #
@@ -257,6 +268,7 @@ def main() -> None:
             "dinov2_model": cfg["dinov2"]["timm_model"],
             "random_seeds": RANDOM_SEEDS,
             "K_sweep": K_SWEEP,
+            "methods": METHODS,
             "embedding_dtype": "float32",
             "has_indices": args.dump_indices,
         },

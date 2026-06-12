@@ -49,9 +49,10 @@ import pandas as pd
 
 from bundle import Bundle  # noqa: E402
 
-K_SWEEP = [4, 8, 16, 32]
-RANDOM_SEEDS = [42, 123, 456]
-METHODS = ["uniform", "random", "optical_flow", "attention", "frame_diff"]
+# The experiment grid (K-sweep, seeds, methods) is read from the bundle metadata
+# at runtime — see Bundle.k_sweep / .random_seeds / .methods — so this script
+# stays in lock-step with the grid the bundle was exported with. The single
+# human-editable source for that grid is configs/experiment.yaml.
 
 
 def episode_coverage(E: np.ndarray, sel_idx) -> tuple[float, float]:
@@ -99,9 +100,9 @@ def episode_mean_array(b: Bundle, idx_fn) -> np.ndarray:
 
 
 def random_episode_mean_array(b: Bundle, k: int) -> np.ndarray:
-    """Per-episode mean coverage for random, averaged over the 3 seeds."""
+    """Per-episode mean coverage for random, averaged over the seeds."""
     arrs = [episode_mean_array(b, _label_indices(b, f"random_k{k}_s{s}"))
-            for s in RANDOM_SEEDS]
+            for s in b.random_seeds]
     return np.mean(arrs, axis=0)
 
 
@@ -127,11 +128,11 @@ def main() -> None:
     print(f"Loaded bundle: {len(b.episode_indices)} episodes")
 
     rows = []
-    for k in K_SWEEP:
-        for m in METHODS:
+    for k in b.k_sweep:
+        for m in b.methods:
             if m == "random":
                 ms, xs = [], []
-                for s in RANDOM_SEEDS:
+                for s in b.random_seeds:
                     mm, xx, _ = coverage_for_rule(b, _label_indices(b, f"random_k{k}_s{s}"))
                     ms.append(mm); xs.append(xx)
                 mean_cov, max_cov, n = float(np.mean(ms)), float(np.mean(xs)), len(b.episode_indices)
@@ -154,9 +155,11 @@ def main() -> None:
     # ---- paired significance: each method vs uniform, per K -------------- #
     rng = np.random.default_rng(0)
     sig_rows = []
-    for k in K_SWEEP:
+    # every method except the uniform baseline, plus the consecutive-block control
+    vs_uniform = [m for m in b.methods if m != "uniform"] + ["consecutive_block"]
+    for k in b.k_sweep:
         uni = episode_mean_array(b, _label_indices(b, f"uniform_k{k}"))
-        for m in ["random", "optical_flow", "attention", "frame_diff", "consecutive_block"]:
+        for m in vs_uniform:
             if m == "random":
                 arr = random_episode_mean_array(b, k)
             elif m == "consecutive_block":

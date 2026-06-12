@@ -45,6 +45,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import yaml
 
 # ---------------------------------------------------------------------------
 # Visual style
@@ -91,7 +92,13 @@ _FALLBACK_COLORS = ["#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
 # conditional so a future ceiling entry renders without code changes.
 _CEILING_KEYS = ("all_frames", "all", "full", "ceiling", "upper_bound")
 
-K_SWEEP = [4, 8, 16, 32]   # used only by the --mock generators
+# Grid for the --mock generators only; sourced from the single experiment config
+# so even the synthetic test fixtures match configs/experiment.yaml.
+_EXP_CONFIG_PATH = Path(__file__).parent.parent / "configs" / "experiment.yaml"
+with open(_EXP_CONFIG_PATH) as _f:
+    _EXP = yaml.safe_load(_f)
+K_SWEEP = _EXP["k_sweep"]
+RANDOM_SEEDS = _EXP["random_seeds"]
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +223,7 @@ def make_mock_eval() -> dict:
         }
 
     return {
-        "config": {"K_sweep": K_SWEEP, "random_seeds": [42, 123, 456]},
+        "config": {"K_sweep": K_SWEEP, "random_seeds": RANDOM_SEEDS},
         "results": results,
     }
 
@@ -242,7 +249,7 @@ def make_mock_perdemo() -> list[dict]:
                         "n_kf": k, "cr": k / T, "T": T,
                         "clip_sim": float(rng.normal(0.23, 0.04)),
                     })
-                for seed in (42, 123, 456):
+                for seed in RANDOM_SEEDS:
                     records.append({
                         "extractor": f"random_k{k}_s{seed}",
                         "task_id": task_id, "episode_index": ep_idx, "split": split,

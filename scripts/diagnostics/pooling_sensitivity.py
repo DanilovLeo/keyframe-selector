@@ -45,9 +45,10 @@ import pandas as pd
 
 from bundle import Bundle, per_query_correct  # noqa: E402
 
-K_SWEEP = [4, 8, 16, 32]
-RANDOM_SEEDS = [42, 123, 456]
-METHODS = ["uniform", "random", "optical_flow", "attention", "frame_diff"]
+# The experiment grid (K-sweep, seeds, methods) is read from the bundle metadata
+# at runtime — see Bundle.k_sweep / .random_seeds / .methods — so this script
+# stays in lock-step with the grid the bundle was exported with. The single
+# human-editable source for that grid is configs/experiment.yaml.
 TOP_K = (1, 5)
 
 
@@ -127,7 +128,7 @@ def _method_correct(b: Bundle, pooling: str, method: str, k: int) -> dict[int, n
         raise ValueError(pooling)
 
     if method == "random":
-        per_seed = [one(f"random_k{k}_s{s}") for s in RANDOM_SEEDS]
+        per_seed = [one(f"random_k{k}_s{s}") for s in b.random_seeds]
         return {kk: np.mean([d[kk].astype(float) for d in per_seed], axis=0) for kk in TOP_K}
     d = one(f"{method}_k{k}")
     return {kk: d[kk].astype(float) for kk in TOP_K}
@@ -146,9 +147,9 @@ def main() -> None:
 
     rows, spread_rows = [], []
     for pooling in ["mean", "max", "best_match"]:
-        for k in K_SWEEP:
+        for k in b.k_sweep:
             t1_by_method = {}
-            for m in METHODS:
+            for m in b.methods:
                 c = _method_correct(b, pooling, m, k)
                 t1, t5 = float(c[1].mean()), float(c[5].mean())
                 t1_by_method[m] = t1

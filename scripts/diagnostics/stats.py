@@ -40,9 +40,10 @@ import pandas as pd
 
 from bundle import Bundle, per_query_correct  # noqa: E402
 
-K_SWEEP = [4, 8, 16, 32]
-RANDOM_SEEDS = [42, 123, 456]
-METHODS = ["uniform", "random", "optical_flow", "attention", "frame_diff"]
+# The experiment grid (K-sweep, seeds, methods) is read from the bundle metadata
+# at runtime — see Bundle.k_sweep / .random_seeds / .methods — so this script
+# stays in lock-step with the grid the bundle was exported with. The single
+# human-editable source for that grid is configs/experiment.yaml.
 
 
 def per_query_correctness(b: Bundle, label: str) -> dict[int, np.ndarray]:
@@ -54,7 +55,7 @@ def per_query_correctness(b: Bundle, label: str) -> dict[int, np.ndarray]:
 def method_correctness(b: Bundle, method: str, k: int) -> dict[int, np.ndarray]:
     """Per-query correctness for (method, K); random is averaged over its seeds."""
     if method == "random":
-        per_seed = [per_query_correctness(b, f"random_k{k}_s{s}") for s in RANDOM_SEEDS]
+        per_seed = [per_query_correctness(b, f"random_k{k}_s{s}") for s in b.random_seeds]
         return {kk: np.mean([d[kk].astype(float) for d in per_seed], axis=0)
                 for kk in (1, 5)}
     d = per_query_correctness(b, f"{method}_k{k}")
@@ -93,16 +94,18 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     print(f"Loaded bundle: {len(b.query_eps())} queries, {len(b.gallery_eps())} gallery")
 
+    methods, k_sweep = b.methods, b.k_sweep
+
     # ---- per-(method, K) correctness, cached for reuse ------------------- #
     corr: dict[tuple, dict] = {}
-    for m in METHODS:
-        for k in K_SWEEP:
+    for m in methods:
+        for k in k_sweep:
             corr[(m, k)] = method_correctness(b, m, k)
 
     # ---- bootstrap CIs --------------------------------------------------- #
     ci_rows = []
-    for m in METHODS:
-        for k in K_SWEEP:
+    for m in methods:
+        for k in k_sweep:
             t1, lo1, hi1 = bootstrap_ci(corr[(m, k)][1], args.boot, rng)
             t5, lo5, hi5 = bootstrap_ci(corr[(m, k)][5], args.boot, rng)
             ci_rows.append({"method": m, "K": k,
@@ -113,9 +116,9 @@ def main() -> None:
     # ---- permutation tests: ALL method pairs, per K ---------------------- #
     perm_rows = []
     largest_idx, largest_abs = -1, -1.0
-    for k in K_SWEEP:
-        for i, ma in enumerate(METHODS):
-            for mb in METHODS[i + 1:]:
+    for k in k_sweep:
+        for i, ma in enumerate(methods):
+            for mb in methods[i + 1:]:
                 obs, p = perm_test(corr[(ma, k)][1], corr[(mb, k)][1], args.boot, rng)
                 perm_rows.append({"K": k, "method_a": ma, "method_b": mb,
                                   "diff_top1": obs, "p_value": p,

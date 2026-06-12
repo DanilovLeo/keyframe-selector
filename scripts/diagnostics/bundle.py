@@ -85,6 +85,16 @@ class Bundle:
         self.episodes: List[dict] = self.meta["episodes"]
         self.labels: List[str] = self.meta.get("labels", [])
 
+        # Experiment grid the bundle was built with, stamped by
+        # export_eval_bundle.py from configs/experiment.yaml. The diagnostics
+        # read it from here (not the yaml) so they always match the bundle they
+        # were handed and stay numpy-only. Older bundles predate the `methods`
+        # stamp, so fall back to the pinned defaults if a key is absent.
+        self.k_sweep: List[int] = list(self.config.get("K_sweep", [4, 8, 16, 32]))
+        self.random_seeds: List[int] = list(self.config.get("random_seeds", [42, 123, 456]))
+        self.methods: List[str] = list(self.config.get(
+            "methods", ["uniform", "random", "optical_flow", "attention", "frame_diff"]))
+
         # Lazy-loaded npz: arrays are read per key on access.
         self._npz = np.load(d / "frame_embeddings.npz")
 

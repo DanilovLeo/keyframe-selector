@@ -1,0 +1,32 @@
+# experiment.yaml — single source of truth for the evaluation grid.
+#
+# Edit the grid HERE and nowhere else. The values below previously lived as
+# literals duplicated across six scripts (the K-sweep / seeds / method list);
+# they are now read from this file so the published configuration cannot drift
+# between the eval, the bundle export, and the diagnostics.
+#
+# Flow of the grid through the pipeline:
+#   * Generators  — run_retrieval_eval.py and export_eval_bundle.py read these
+#                   values to build the extractor grid. plot_results.py reads
+#                   them for its --mock data generators.
+#   * Bundle      — export_eval_bundle.py stamps k_sweep / random_seeds /
+#                   methods into results/bundle/bundle_meta.json.
+#   * Diagnostics — scripts/diagnostics/* read the grid back from the bundle
+#                   metadata (Bundle.k_sweep / .random_seeds / .methods), NOT
+#                   from this file, so they always match the bundle they were
+#                   handed and stay numpy-only (no yaml import on the CPU path).
+#
+# Pinned by docs/decisions.md and the README. Changing k_sweep or random_seeds
+# requires re-running the GPU export so the bundle's stamped grid matches.
+
+# Frame budgets for the compression sweep (K in K/T). Reported as a sweep,
+# never a single K (see configs/CLAUDE evaluation protocol).
+k_sweep: [4, 8, 16, 32]
+
+# Seeds for the random baseline (matched-N control). At least 3; reported as
+# mean +/- std. Frame 0 and T-1 are always included by every extractor.
+random_seeds: [42, 123, 456]
+
+# Methods compared. Order is the canonical reporting order. uniform/random are
+# the baselines; optical_flow/attention/frame_diff are the CV extractors.
+methods: [uniform, random, optical_flow, attention, frame_diff]

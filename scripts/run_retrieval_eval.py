@@ -81,6 +81,7 @@ from src.evaluation.cache import FrameEmbeddingCache
 # ---------------------------------------------------------------------------
 
 _CONFIG_PATH = Path(__file__).parent.parent / "configs" / "models.yaml"
+_EXP_CONFIG_PATH = Path(__file__).parent.parent / "configs" / "experiment.yaml"
 
 
 def load_model_config() -> dict:
@@ -88,12 +89,18 @@ def load_model_config() -> dict:
         return yaml.safe_load(f)
 
 
+def load_experiment_config() -> dict:
+    with open(_EXP_CONFIG_PATH) as f:
+        return yaml.safe_load(f)
+
+
 # ---------------------------------------------------------------------------
-# Experiment grid
+# Experiment grid — single source of truth: configs/experiment.yaml
 # ---------------------------------------------------------------------------
 
-K_SWEEP      = [4, 8, 16, 32]
-RANDOM_SEEDS = [42, 123, 456]
+_EXP         = load_experiment_config()
+K_SWEEP      = _EXP["k_sweep"]
+RANDOM_SEEDS = _EXP["random_seeds"]
 
 
 def build_extractor_grid(cfg: dict) -> List[tuple]:
@@ -354,6 +361,7 @@ def main():
                 "dinov2_model": cfg["dinov2"]["timm_model"],
                 "random_seeds": RANDOM_SEEDS,
                 "K_sweep":      K_SWEEP,
+                "methods":      _EXP["methods"],
             },
             "results": agg,
         }, f, indent=2)
