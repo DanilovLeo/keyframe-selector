@@ -1,19 +1,42 @@
-| K | method_a | method_b | diff_top1 | p_value |
-| --- | --- | --- | --- | --- |
-| 4 | random | uniform | 0.0169 | 0.3330 |
-| 4 | optical_flow | uniform | -0.0056 | 1.0000 |
-| 4 | attention | uniform | 0.0112 | 0.6902 |
-| 4 | frame_diff | uniform | 0.0281 | 0.2254 |
-| 8 | random | uniform | 0.0243 | 0.0562 |
-| 8 | optical_flow | uniform | 0.0112 | 0.7751 |
-| 8 | attention | uniform | -0.0056 | 1.0000 |
-| 8 | frame_diff | uniform | 0.0169 | 0.5100 |
-| 16 | random | uniform | -0.0075 | 0.5118 |
-| 16 | optical_flow | uniform | -0.0112 | 0.7227 |
-| 16 | attention | uniform | 0.0056 | 1.0000 |
-| 16 | frame_diff | uniform | 0.0056 | 1.0000 |
-| 32 | random | uniform | -0.0019 | 1.0000 |
-| 32 | optical_flow | uniform | -0.0112 | 0.4963 |
-| 32 | attention | uniform | 0.0000 | 1.0000 |
-| 32 | frame_diff | uniform | -0.0056 | 1.0000 |
-| 4 | optical_flow | frame_diff (LARGEST GAP) | -0.0337 | 0.1088 |
+| K | method_a | method_b | diff_top1 | p_value | largest_gap |
+| --- | --- | --- | --- | --- | --- |
+| 4 | uniform | random | -0.0169 | 0.3330 | False |
+| 4 | uniform | optical_flow | 0.0056 | 1.0000 | False |
+| 4 | uniform | attention | -0.0112 | 0.6902 | False |
+| 4 | uniform | frame_diff | -0.0281 | 0.2254 | False |
+| 4 | random | optical_flow | 0.0225 | 0.2083 | False |
+| 4 | random | attention | 0.0056 | 0.8002 | False |
+| 4 | random | frame_diff | -0.0112 | 0.5869 | False |
+| 4 | optical_flow | attention | -0.0169 | 0.4530 | False |
+| 4 | optical_flow | frame_diff | -0.0337 | 0.1072 | True |
+| 4 | attention | frame_diff | -0.0169 | 0.5836 | False |
+| 8 | uniform | random | -0.0243 | 0.0545 | False |
+| 8 | uniform | optical_flow | -0.0112 | 0.7703 | False |
+| 8 | uniform | attention | 0.0056 | 1.0000 | False |
+| 8 | uniform | frame_diff | -0.0169 | 0.5095 | False |
+| 8 | random | optical_flow | 0.0131 | 0.5180 | False |
+| 8 | random | attention | 0.0300 | 0.1208 | False |
+| 8 | random | frame_diff | 0.0075 | 0.7247 | False |
+| 8 | optical_flow | attention | 0.0169 | 0.6289 | False |
+| 8 | optical_flow | frame_diff | -0.0056 | 1.0000 | False |
+| 8 | attention | frame_diff | -0.0225 | 0.3477 | False |
+| 16 | uniform | random | 0.0075 | 0.5130 | False |
+| 16 | uniform | optical_flow | 0.0112 | 0.7321 | False |
+| 16 | uniform | attention | -0.0056 | 1.0000 | False |
+| 16 | uniform | frame_diff | -0.0056 | 1.0000 | False |
+| 16 | random | optical_flow | 0.0037 | 0.8849 | False |
+| 16 | random | attention | -0.0131 | 0.2588 | False |
+| 16 | random | frame_diff | -0.0131 | 0.3892 | False |
+| 16 | optical_flow | attention | -0.0169 | 0.3739 | False |
+| 16 | optical_flow | frame_diff | -0.0169 | 0.3732 | False |
+| 16 | attention | frame_diff | 0.0000 | 1.0000 | False |
+| 32 | uniform | random | 0.0019 | 1.0000 | False |
+| 32 | uniform | optical_flow | 0.0112 | 0.5050 | False |
+| 32 | uniform | attention | 0.0000 | 1.0000 | False |
+| 32 | uniform | frame_diff | 0.0056 | 1.0000 | False |
+| 32 | random | optical_flow | 0.0094 | 0.4954 | False |
+| 32 | random | attention | -0.0019 | 1.0000 | False |
+| 32 | random | frame_diff | 0.0037 | 1.0000 | False |
+| 32 | optical_flow | attention | -0.0112 | 0.6283 | False |
+| 32 | optical_flow | frame_diff | -0.0056 | 1.0000 | False |
+| 32 | attention | frame_diff | 0.0056 | 1.0000 | False |

@@ -10,9 +10,9 @@ that rather than asserting it.
 Reconstructs each existing config's demo embeddings from the exported keyframe
 indices, then:
   * bootstrap 95% CIs on Top-1 / Top-5 (resampling the 178 queries), and
-  * paired permutation tests (per-query correctness, sign-flip null) for each
-    CV / random method vs the uniform baseline at every K, plus the single
-    largest pairwise gap in the grid.
+  * paired permutation tests (per-query correctness, sign-flip null) for every
+    method pair at every K — all C(5,2)=10 pairs x 4 K = 40 comparisons — with
+    the single largest pairwise gap flagged.
 
 Random is aggregated across its 3 seeds (per-query mean correctness) to match the
 published mean±std reporting.
@@ -110,29 +110,20 @@ def main() -> None:
                             "top_5": t5, "t5_lo": lo5, "t5_hi": hi5})
     ci_df = pd.DataFrame(ci_rows)
 
-    # ---- permutation tests: each method vs uniform, per K ---------------- #
+    # ---- permutation tests: ALL method pairs, per K ---------------------- #
     perm_rows = []
-    for k in K_SWEEP:
-        cu = corr[("uniform", k)][1]
-        for m in METHODS:
-            if m == "uniform":
-                continue
-            obs, p = perm_test(corr[(m, k)][1], cu, args.boot, rng)
-            perm_rows.append({"K": k, "method_a": m, "method_b": "uniform",
-                              "diff_top1": obs, "p_value": p})
-
-    # ---- the single largest pairwise gap in the grid --------------------- #
-    best = None
+    largest_idx, largest_abs = -1, -1.0
     for k in K_SWEEP:
         for i, ma in enumerate(METHODS):
             for mb in METHODS[i + 1:]:
                 obs, p = perm_test(corr[(ma, k)][1], corr[(mb, k)][1], args.boot, rng)
-                if best is None or abs(obs) > abs(best["diff_top1"]):
-                    best = {"K": k, "method_a": ma, "method_b": mb,
-                            "diff_top1": obs, "p_value": p}
-    if best:
-        best = {**best, "method_b": best["method_b"] + " (LARGEST GAP)"}
-        perm_rows.append(best)
+                perm_rows.append({"K": k, "method_a": ma, "method_b": mb,
+                                  "diff_top1": obs, "p_value": p,
+                                  "largest_gap": False})
+                if abs(obs) > largest_abs:
+                    largest_abs, largest_idx = abs(obs), len(perm_rows) - 1
+    if largest_idx >= 0:
+        perm_rows[largest_idx]["largest_gap"] = True
     perm_df = pd.DataFrame(perm_rows)
 
     out = Path(args.out_dir)
@@ -144,10 +135,16 @@ def main() -> None:
 
     print("\n--- retrieval_cis ---")
     print(ci_df.to_string(index=False))
-    print("\n--- retrieval_permutation (vs uniform; last row = largest grid gap) ---")
+    print("\n--- retrieval_permutation (all method pairs; largest_gap flagged) ---")
     print(perm_df.to_string(index=False))
     n_sig = int((perm_df["p_value"] < 0.05).sum())
+    min_p = perm_df.loc[perm_df["p_value"].idxmin()]
+    gap = perm_df.loc[perm_df["largest_gap"]].iloc[0]
     print(f"\nSignificant comparisons at p<0.05: {n_sig} / {len(perm_df)}")
+    print(f"Smallest p: {min_p['p_value']:.4f} "
+          f"({min_p['method_a']} vs {min_p['method_b']}, K={min_p['K']})")
+    print(f"Largest gap: {gap['diff_top1']:+.4f} "
+          f"({gap['method_a']} vs {gap['method_b']}, K={gap['K']}, p={gap['p_value']:.4f})")
 
 
 def _write_md(df: pd.DataFrame, path: Path) -> None:
