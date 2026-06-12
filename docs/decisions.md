@@ -209,6 +209,80 @@ is sequenced late.
 
 ---
 
+## 2026-06-12 — PRE-REGISTERED: velocity-placement explanation for the K=32 coverage crossover
+
+**Status.** PRE-REGISTERED analysis, written *before* the diagnostic runs. It
+explains an *already-reported* observation (§5.6: `attention`/`frame_diff` have
+worse coverage error than `uniform` at K≤16 but *better* at K=32); it adds no new
+metric and changes no reported number. The expected outcome is fixed **both
+ways** so the mechanism paragraph cannot be back-fitted to the data.
+
+**Context.** §5.6 found a crossover: even spacing (`uniform`) minimises coverage
+error at tight budgets, but content-adaptive anchors (`attention`, `frame_diff`)
+overtake it at K=32. The report currently states *that* this happens without
+explaining *why*. The candidate mechanism: adaptive methods place their interior
+anchors in high embedding-**velocity** regions (`v_t = ||e_t − e_{t−1}||`), so
+once the budget is generous they cover the fast-changing parts of the trajectory
+— where nearest-anchor distance concentrates — better than velocity-agnostic even
+spacing; at tight budgets this is outweighed by the larger temporal holes their
+clustering leaves.
+
+**Decision.** Run `scripts/diagnostics/crossover_analysis.py` (numpy-only, reads
+the bundle's exported keyframe indices) computing, per method × K, episode means
+of: (1) `velocity_ratio` — mean velocity at interior anchors ÷ mean velocity over
+all interior frames (>1 ⇒ anchors prefer fast regions; `uniform` ≈ 1 by
+construction); (2) `max_gap_ratio` — largest inter-anchor temporal gap ÷ mean gap
+(the "hole" the clustering leaves; `uniform` ≈ 1); (3) a coverage decomposition
+`mean_cov_highvel` / `mean_cov_lowvel` splitting non-selected frames at the
+episode-median velocity. `mean_cov` is recomputed via the §5.6
+`episode_coverage` for an exact consistency cross-check.
+
+**Pre-registered decision rule (both ways).**
+- **SUPPORTS → add a mechanism paragraph to methods.md §5.6.1** if, at K=32,
+  `velocity_ratio` for *both* `attention` and `frame_diff` exceeds `uniform`'s by
+  a clear margin (≥ 0.10 and > 1.0), **and** their K=32 coverage advantage over
+  `uniform` localises to the high-velocity region (uniform − method coverage is
+  larger, i.e. more positive, in `mean_cov_highvel` than in `mean_cov_lowvel`).
+- **INCONCLUSIVE → record the null in this log, leave methods.md unchanged** if
+  adaptive `velocity_ratio` ≈ `uniform` (no preferential placement) or the K=32
+  advantage does not concentrate in high-velocity frames. No mechanism claim is
+  added to the report.
+
+**Why this is in scope.** Pure arithmetic on the frozen cached embeddings and the
+already-exported keyframe indices — `||e_t − e_{t−1}||`, anchor positions, gaps.
+No model, no training, no reconstruction, no robot state, no rollout, no new data,
+single view `image_0`. Same posture as the §5.6 coverage metric it explains.
+
+**Consequences.**
+- New diagnostic `scripts/diagnostics/crossover_analysis.py`; outputs
+  `results/tables/crossover_analysis.{md,csv}` and
+  `results/plots/fig_crossover_velocity.{pdf,png}`. Reuses the cached bundle;
+  numpy-only; no GPU.
+- methods.md is touched *only* on SUPPORTS (a §5.6.1 paragraph); on INCONCLUSIVE
+  the outcome lives here and the report is unchanged.
+
+**Result (2026-06-12) — INCONCLUSIVE; methods.md left unchanged.**
+`results/tables/crossover_analysis.md`,
+`results/plots/fig_crossover_velocity.{pdf,png}`. The pre-registered
+velocity-density condition **fails**: at K=32 `velocity_ratio` ≈ 1 for *every*
+method (uniform 0.998, attention 1.009, frame_diff 1.010, optical_flow 0.996,
+random 1.000). With ~32 anchors the interior is sampled so densely that no method
+retains a velocity preference; the adaptive margin over uniform is +0.011/+0.012,
+an order of magnitude below the pre-registered ≥ 0.10 — a robust miss, not a
+borderline one. Note the preference *does* exist at low K (attention/frame_diff
+velocity_ratio ≈ 1.11 at K=4/8 vs uniform ≈ 1.02–1.07) and decays to ~1 by K=32.
+The *second* condition holds — the K=32 advantage localises to high-velocity
+frames (attention hi-vel adv +0.0032 vs lo-vel −0.0025; frame_diff +0.0045 vs
+−0.0005: adaptive covers fast frames better, slow frames slightly worse, net
+better) — so the **effect** is real but its proposed **cause** (higher mean
+anchor velocity) is not. A subtler explanation (anchoring at velocity *peaks* /
+transition frames without raising mean anchor velocity) is plausible but not
+cleanly demonstrated by this analysis. Because the pre-registered rule requires
+**both** conditions, the mechanism is not confirmed and no paragraph is added to
+methods.md §5.6; the artifacts are kept for the record.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)
