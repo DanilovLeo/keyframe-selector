@@ -283,6 +283,64 @@ methods.md §5.6; the artifacts are kept for the record.
 
 ---
 
+## 2026-06-12 — PRE-REGISTERED: instance-level retrieval diagnostic (within-episode half-split)
+
+**Status.** PRE-REGISTERED, written *before* the diagnostic runs. A new diagnostic
+that re-frames the *pinned* retrieval metric with **episode identity** as the
+label (instance ID) instead of the task label. Reported-alongside, like coverage
+error; it changes no existing reported number.
+
+**Context.** §4–§5 showed *task* retrieval is scene-saturated and
+selection-invariant (0/40 method pairs significant). Open question: at the harder
+*instance* level — identify the specific episode, not its task — does selection
+matter? If even instance ID is selection-invariant, saturation is deeper still;
+if methods separate, there is a selection-sensitive retrieval regime worth
+reporting.
+
+**Decision (the fork, pre-registered).**
+- **Frame split.** Each episode's frames are split at the temporal midpoint
+  `mid = T // 2`: `H1 = [0, mid)`, `H2 = [mid, T)`. *Justification for temporal,
+  not random:* a temporal split tests whether the early portion identifies the
+  late portion — a stricter instance-consistency test; a random split would put
+  temporally-adjacent near-duplicate frames in both halves and inflate the
+  within-episode match.
+- **Vectors.** Query = pooled selected keyframes (from the full-episode exported
+  indices) that fall in `H1`; each episode's gallery entry = its selected
+  keyframes that fall in `H2`. Endpoints 0 and T−1 are forced, so both halves are
+  always non-empty.
+- **Protocol.** Gallery = all 863 episodes' `H2` pools; queries = all 863
+  episodes' `H1` pools; a query is correct iff its nearest gallery vector is the
+  **same** episode. Chance = 1/863 ≈ 0.0012. Instance ID ignores the task
+  gallery/query split (every episode is its own class). Metric: Top-1 (and Top-5)
+  same-episode ID per method × K; paired sign-flip permutation test of per-query
+  correctness vs `uniform` (random averaged over its seeds). Query = first half is
+  fixed (not symmetrised) for a single, pre-stated direction.
+
+**Expected outcome (both ways).**
+- **Methods separate** (≥ 1 method beats `uniform` at p < 0.05): instance
+  retrieval is a *selection-sensitive* regime — §5.8 reports it as such.
+- **Methods tie** (0 significant, as in task retrieval): saturation extends to the
+  instance level — §5.8 reports *that*.
+Either way §5.8 reports the grid + significance honestly; no headline depends on
+which outcome lands.
+
+**Why this is in scope.** Re-uses the frozen cached embeddings and the already
+exported keyframe indices; pixels-in (via the frozen encoder), indices-in,
+scalar-out. No model, no training, no reconstruction, no robot state, no rollout,
+no new dataset, single view `image_0`. It is a *re-labelling* of the approved
+intrinsic-retrieval metric (episode identity vs task identity), not a new data
+source or model. (Scope note flagged to the supervisor: instance ID is not on the
+current sign-off list; it sits inside the approved retrieval protocol, but its
+addition is surfaced rather than assumed.)
+
+**Consequences.**
+- New diagnostic `scripts/diagnostics/instance_retrieval.py`; outputs
+  `results/tables/instance_retrieval.{md,csv}` and
+  `results/tables/instance_significance.{md,csv}`. methods.md gains §5.8.
+  numpy-only; no GPU.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)

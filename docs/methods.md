@@ -346,6 +346,48 @@ embeddings — no model fit, no training, no new data; promoting any *positive*
 residual result into the report body was reserved for supervisor sign-off, which
 the negative outcome moots.)
 
+### 5.8 Instance-level retrieval is selection-sensitive — and favours even spreading
+
+Task retrieval is saturated because every same-task episode shares a scene
+(§5.1). A harder framing turns the *same* machinery into a selection-sensitive
+test: re-label every episode as its own class and ask whether the keyframes from
+one *half* of an episode retrieve its **other** half against all 863 episodes'
+second halves (pre-registered, `docs/decisions.md`, 2026-06-12;
+`scripts/diagnostics/instance_retrieval.py`,
+`results/tables/instance_retrieval.md`,
+`results/tables/instance_significance.md`). Frames are split at the temporal
+midpoint; query = pooled selected keyframes in the first half, gallery = the
+same episode's selected keyframes in the second half.
+
+- **Instance identity survives the split.** Top-1 ranges 0.28–0.48 and Top-5
+  0.56–0.81 against a 1/863 ≈ 0.0012 chance line — the early half identifies the
+  late half of the same episode tens of percent of the time, so per-episode
+  visual identity persists through the half-split and the keyframe pooling.
+- **It is selection-sensitive, unlike task retrieval.** Where task retrieval gave
+  0/40 significant method pairs (§5.4), instance retrieval gives **6 of 16**
+  method-vs-uniform Top-1 comparisons at p < 0.05. But the sensitivity runs
+  *opposite* to the content-adaptive hypothesis: **uniform (even spread) is the
+  strongest method**, and at tight budgets the adaptive/random methods are
+  significantly *worse* — at K=4 random/optical_flow/attention trail uniform by
+  0.041–0.060 (p ≤ 0.01); at K=8 random and optical_flow trail by 0.038/0.066;
+  optical_flow stays significantly worse through K=16. The gap closes by K=32,
+  where all five methods converge (0/4 significant) and Top-1 plateaus ~0.46.
+- **Mechanism — consistent with coverage error (§5.6).** Instance ID rewards a
+  *representative* episode signature, which even spreading supplies directly;
+  content-adaptive methods cluster their few anchors on salient/"settled" frames,
+  so each half-split pool samples its sub-trajectory less representatively —
+  a noisier instance match at low K, washed out once the budget is dense.
+
+So the order-invariant mean-pool is not blind to selection *per se*: at the
+instance level it resolves the methods, and — exactly as coverage error does — it
+favours uniform coverage over saliency. Content-adaptive selection helps neither
+task retrieval (saturated) nor instance retrieval (where it slightly *hurts* at
+low K); even sampling remains the strongest simple choice on this benchmark.
+*(Scope: instance ID re-labels the approved intrinsic-retrieval metric — episode
+identity vs task identity — on the same frozen cached embeddings; no new data,
+model, or robot-state signal. Flagged to the supervisor as an addition rather
+than assumed.)*
+
 ---
 
 ## 6. Threats to validity
@@ -407,6 +449,8 @@ results/tables/coverage_error.*        coverage error (§5.6)
 results/tables/coverage_significance.* paired permutation tests on coverage (§5.6)
 results/tables/residual_similarity.*   residual-space similarity gate, FAIL (§5.7)
 results/plots/fig_residual_similarity.*  residual vs raw similarity distributions (§5.7)
+results/tables/instance_retrieval.*    instance-level Top-1/Top-5 grid (§5.8)
+results/tables/instance_significance.* paired permutation tests vs uniform (§5.8)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -416,4 +460,6 @@ scripts/diagnostics/stats.py                   §5.4
 scripts/diagnostics/pooling_sensitivity.py     §5.5
 scripts/diagnostics/coverage_error.py          §5.6
 scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)
+scripts/diagnostics/crossover_analysis.py      K=32 coverage crossover (decisions.md only)
+scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
 ```

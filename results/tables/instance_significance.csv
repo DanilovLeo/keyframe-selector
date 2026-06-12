@@ -1,0 +1,17 @@
+method,vs,K,diff_top1,p_value,sig_0.05
+random,uniform,4,-0.06025492468134416,0.0,True
+optical_flow,uniform,4,-0.0440324449594438,0.0034,True
+attention,uniform,4,-0.04055619930475087,0.0102,True
+frame_diff,uniform,4,-0.023174971031286212,0.1726,False
+random,uniform,8,-0.03785245268443416,0.0017,True
+optical_flow,uniform,8,-0.0660486674391657,0.0,True
+attention,uniform,8,-0.0034762456546929316,0.8836,False
+frame_diff,uniform,8,-0.002317497103128621,0.9449,False
+random,uniform,16,-0.014291232135959836,0.0702,False
+optical_flow,uniform,16,-0.030127462340672075,0.0134,True
+attention,uniform,16,0.005793742757821553,0.6794,False
+frame_diff,uniform,16,0.016222479721900347,0.1527,False
+random,uniform,32,0.0027037466203167237,0.5677,False
+optical_flow,uniform,32,0.002317497103128621,0.8341,False
+attention,uniform,32,0.0011587485515643105,1.0,False
+frame_diff,uniform,32,0.004634994206257242,0.3894,False
