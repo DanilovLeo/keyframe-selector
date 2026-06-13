@@ -201,6 +201,14 @@ class BridgeDataLoader:
         frames: List[np.ndarray] = []
         with av.open(mp4_path) as container:
             stream = container.streams.video[0]
+            # Single-threaded decode. PyAV's default multithreaded decoder
+            # spawns worker threads per episode; across a long export run
+            # (thousands of episodes) these accumulate faster than they are
+            # reaped and exhaust the container's PID/thread budget, which
+            # libav surfaces as avcodec_open2 ENOMEM even with hundreds of GB
+            # of RAM free. One thread per decode keeps the budget flat;
+            # BridgeData clips are tiny so the throughput cost is negligible.
+            stream.thread_type = "NONE"
             for frame in container.decode(stream):
                 frames.append(frame.to_ndarray(format="rgb24"))
 
