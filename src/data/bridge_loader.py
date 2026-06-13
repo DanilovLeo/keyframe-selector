@@ -209,6 +209,7 @@ class BridgeDataLoader:
             # of RAM free. One thread per decode keeps the budget flat;
             # BridgeData clips are tiny so the throughput cost is negligible.
             stream.thread_type = "NONE"
+            stream.codec_context.thread_count = 1
             for frame in container.decode(stream):
                 frames.append(frame.to_ndarray(format="rgb24"))
 
