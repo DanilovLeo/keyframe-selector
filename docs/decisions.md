@@ -467,6 +467,38 @@ dependency."
   `frame_embeddings.npz` (384-dim) differs. CLIP tables and all previously
   reported numbers are untouched.
 
+**Result (2026-06-13) — PERSISTS after multiple-comparison correction; recorded as
+methods §5.9 (cross-backbone replication).** Re-embedded all 863 episodes (same
+20 tasks, same `image_0`) with DINOv2 ViT-S/14 on a fresh GPU pod and ran the
+driver (`results_dinov2/tables/dinov2_{similarity,retrieval,permutation}.{md,csv}`).
+- **Saturation reproduces.** Intra-episode frame-pair cosine median **0.840 ≈
+  same-task 0.823** (Δ = 0.017, tight-gate PASS), both ≫ inter-task **0.461**.
+  Retrieval grid: all 20 method × K Top-1 cells in **0.798–0.837**, every bootstrap
+  95% CI overlapping. The §5.1/§5.4 structure holds under a vision-only backbone.
+- **One real difference — the task gap is ~4× wider** (same − inter = 0.361 vs
+  CLIP's 0.094): DINOv2 separates tasks more (no shared-caption pull), yet
+  selection still does not move retrieval. This matches the pre-registered
+  "DINOv2 also saturates" branch, not the "de-saturates / promote to co-primary"
+  branch — so **CLIP stays the pinned primary**; DINOv2 remains a robustness control.
+- **The driver printed `BREAKS`, and this is reported honestly as a rule
+  limitation, not a finding.** The pre-registered verdict triggers on **≥ 1/40
+  uncorrected** permutation rejections; exactly **1/40** fired — uniform vs random
+  at K=8, Δ = 0.032, p = 0.0093. That single hit is a multiple-comparisons false
+  positive: the chance-expected false-positive count across 40 tests at α = 0.05 is
+  **2** (so 1/40 is below chance), the next-smallest p is 0.106 (a 10× gap), and it
+  survives **no** correction — Bonferroni / Holm / Benjamini–Hochberg all set the
+  rank-1 threshold at ≤ 0.00125. It is also two *non-CV baselines* at a *single* K
+  (a coverage-uniformity blip, cf. §5.6), not a CV method consistently winning.
+  **After correcting for the 40 comparisons, 0/40 pairs differ → corrected verdict
+  PERSISTS.** The pre-registration omitted a multiple-comparison correction; that
+  omission — the sole reason the mechanical verdict read `BREAKS` — is the deviation
+  recorded here. We report both the mechanical verdict and the corrected conclusion.
+- **Reproducible offline.** The DINOv2 bundle (`results/bundle_dinov2/`, untracked
+  per CLAUDE.md) was copied back to CPU; re-running the driver locally regenerates
+  the retrieval and permutation tables **byte-identically** and the similarity
+  percentiles to ~1e-6 (cross-numpy float rounding). The pod's run is authoritative
+  and committed; no GPU is needed to re-derive §5.9.
+
 ---
 
 ## Scope reminder

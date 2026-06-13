@@ -406,6 +406,57 @@ identity vs task identity — on the same frozen cached embeddings; no new data,
 model, or robot-state signal. Flagged to the supervisor as an addition rather
 than assumed.)*
 
+### 5.9 Cross-backbone replication: saturation persists under a vision-only DINOv2 encoder (pre-registered)
+
+A live alternative to §5.1 is that the saturation is a **CLIP-specific** artifact —
+CLIP's contrastive caption training could pull same-scene frames together
+regardless of content. To rule this out we pre-registered (`docs/decisions.md`,
+2026-06-12) a cross-encoder control: re-embed the **same 20-task, `image_0`** data
+with **DINOv2 ViT-S/14** (384-dim, self-supervised, vision-only, **no text
+tower**), then re-run the saturation + retrieval + permutation diagnostics
+unchanged (`scripts/diagnostics/dinov2_retrieval.py`;
+`results_dinov2/tables/dinov2_{similarity,retrieval,permutation}.{md,csv}`).
+Selection extractors are backbone-independent, so the keyframe indices are
+identical to §5.1–5.4; only the embedding changes. DINOv2
+(`vit_small_patch14_dinov2`) was already pinned in `configs/models.yaml` and
+already drives the attention extractor — no new dependency, no new data.
+
+- **The saturation signature reproduces.** Intra-episode frame-pair cosine median
+  **0.840 ≈ inter-episode same-task 0.823** (Δ = 0.017, within the pre-set 0.05
+  band), both ≫ inter-task **0.461** — the §5.1 structure (within-episode ≈
+  same-task ≫ different-task) holds under a completely different backbone.
+- **Retrieval stays selection-invariant.** All 20 method × K Top-1 cells lie in
+  **0.798–0.837**, every bootstrap 95% CI overlapping every other — the §5.4
+  picture, unchanged.
+- **One difference, and it strengthens the mechanism.** The inter-task gap is
+  **~4× wider** under DINOv2 (same − inter = **0.361** vs CLIP's 0.094): a
+  vision-only encoder separates tasks far more than CLIP (no shared-caption pull).
+  Yet retrieval is *still* selection-invariant, because intra-episode frames remain
+  so alike (median 0.840) that swapping keyframes barely moves the demo embedding
+  relative to that wide gap. Scene-dominance, not a CLIP captioning quirk, drives
+  the saturation.
+- **The pre-registered verdict, reported honestly.** The decision rule fired
+  `BREAKS` — but only because it triggers on **≥ 1/40 uncorrected** permutation
+  rejections, and exactly **1/40** came up significant (uniform vs random at K=8,
+  Δ = 0.032, p = 0.0093). That lone rejection is a multiple-comparisons artifact:
+  across 40 tests the chance-expected false-positive count at α = 0.05 is **2**, so
+  1/40 is *below* chance; the next-smallest p is 0.106 (a 10× gap); and the hit
+  survives **no** correction — Bonferroni, Holm, and even Benjamini–Hochberg all
+  set the rank-1 threshold at ≤ 0.00125. It is also two *non-CV baselines* at a
+  *single* K (uniform's even spread edging random — a coverage-uniformity blip,
+  cf. §5.6), not a CV method consistently winning. **After correcting for the 40
+  comparisons, 0/40 pairs differ.**
+
+Corrected, the finding **persists**: the saturation and selection-invariance
+replicate under a second, architecturally and training-distinct backbone, so they
+are a property of the **data** (near-identical within-episode frames sharing a
+scene), not of CLIP's caption space. The pre-registered rule's omission of a
+multiple-comparison correction — the sole reason its mechanical verdict read
+`BREAKS` on a sub-chance false positive — is recorded in `docs/decisions.md`; CLIP
+remains the pinned primary backbone, with DINOv2 a robustness control only.
+*(Scope: same data/view, an already-pinned vision encoder, frozen-embedding
+diagnostics; no text metric, no new dataset, no robot-state signal — Variant C.)*
+
 ---
 
 ## 6. Threats to validity
@@ -440,8 +491,10 @@ than assumed.)*
   is now quantitative: intra-episode similarity ≈ the inter-task gap (§5.1); one
   frame suffices and a degenerate block is indistinguishable (§5.2); the oracle
   ceiling sits 10–13 points above every deployable method (§5.3); 0/40 method
-  pairs are significant (§5.4); and the invariance survives max- and best-match
-  pooling (§5.5). All reuse the cached frame embeddings and add no policy,
+  pairs are significant (§5.4); the invariance survives max- and best-match
+  pooling (§5.5); and it replicates under a vision-only DINOv2 backbone whose
+  inter-task gap is 4× wider, with 0/40 method pairs differing after
+  multiple-comparison correction (§5.9). All reuse the cached frame embeddings and add no policy,
   rollout, robot-state signal, or new dataset — in scope for Variant C.
 
 ## 7. Artifacts
@@ -470,6 +523,9 @@ results/tables/residual_similarity.*   residual-space similarity gate, FAIL (§5
 results/plots/fig_residual_similarity.*  residual vs raw similarity distributions (§5.7)
 results/tables/instance_retrieval.*    instance-level Top-1/Top-5 grid (§5.8)
 results/tables/instance_significance.* paired permutation tests vs uniform (§5.8)
+results_dinov2/tables/dinov2_similarity.*   DINOv2 saturation distributions (§5.9)
+results_dinov2/tables/dinov2_retrieval.*    DINOv2 Top-1/Top-5 grid + boot CIs (§5.9)
+results_dinov2/tables/dinov2_permutation.*  DINOv2 40-pair permutation grid (§5.9)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -482,14 +538,10 @@ scripts/diagnostics/coverage_error.py          §5.6
 scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)
 scripts/diagnostics/crossover_analysis.py      K=32 coverage crossover (decisions.md only)
 scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
-scripts/diagnostics/dinov2_retrieval.py        Task 4 DINOv2 cross-backbone check (pending GPU)
+scripts/diagnostics/dinov2_retrieval.py        §5.9 DINOv2 cross-backbone replication
 ```
 
 Pending GPU re-embedding (pre-registered, decisions.md 2026-06-12):
 ```
-export_eval_bundle.py --backbone dinov2   DINOv2-embedded parallel bundle (Task 4)
-results/tables/dinov2_similarity.*         DINOv2 saturation distributions (Task 4)
-results/tables/dinov2_retrieval.*          DINOv2 Top-1/Top-5 grid + boot CIs (Task 4)
-results/tables/dinov2_permutation.*        DINOv2 40-pair permutation grid (Task 4)
 results/bundle_100t/ + results_100t/       100-task scale-up bundle + suite (Task 2)
 ```

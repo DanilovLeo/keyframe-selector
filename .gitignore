@@ -11,7 +11,12 @@ build/
 # Local-only operator runbook (kept on disk, not tracked)
 RUNPOD.md
 
-# Derived analysis bundle (per-frame embeddings + indices, ~150-250MB).
-# Re-exported on demand by scripts/export_eval_bundle.py; never tracked.
-# Diagnostic OUTPUTS under results/tables/ and results/plots/ ARE tracked.
-results/bundle/
+# Derived analysis bundles (per-frame embeddings + indices, ~50-250MB each:
+# bundle/, bundle_dinov2/, bundle_100t/, ...). Re-exported on demand by
+# scripts/export_eval_bundle.py; never tracked. Diagnostic OUTPUTS under
+# results/tables/, results/plots/, results_dinov2/tables/, results_100t/tables/
+# ARE tracked.
+results/bundle*/
+
+# Result/transfer archives (kf_results.tgz, task4_dinov2.tgz, ...); re-creatable.
+*.tgz
