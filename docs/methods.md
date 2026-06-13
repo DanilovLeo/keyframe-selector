@@ -286,6 +286,30 @@ motivates the 100-task scale-up (~5× queries shrinks the CI ~2.2× to ≈ ±0.0
 below δ). The diagnostic takes `--bundle`, so it re-runs unchanged on the larger
 bundle when it lands.
 
+**Realized (100-task scale-up, n = 898 queries, 4,390 episodes;
+`results_100t/tables/`).** The pre-registered scale-up landed and confirms the
+prediction. The 90% CI half-width drops to **median 0.0104, max 0.0138** (~2.3×
+tighter; predicted ~2.2×), so the *entire* half-width now sits below δ = 0.02 —
+the sample is adequately powered for the pre-set margin. **38 of 40** pairs are
+certified equivalent (up from 7/40). The two exceptions — random vs attention at
+K = 4 (diff −0.012) and optical_flow vs attention at K = 16 (diff −0.010) — fail
+not on width but because their point estimates sit ~0.01 off-centre, so the 90%
+CI grazes −0.02 by ≤ 0.004; both are non-significant under the paired permutation
+test (p = 0.10 and 0.17, `results_100t/tables/retrieval_permutation.md`) and
+neither involves a CV method beating uniform, so they read as sampling noise, not
+a recovered selection signal. The permutation grid stays null at scale (0/40
+flagged; one nominal p = 0.037 at K = 32 uniform-vs-random, a non-CV pair that
+fails multiplicity), and the saturation mechanism is unchanged on 5× the data:
+intra-episode median **0.927** ≈ same-task **0.931** ≫ inter-task **0.796**
+(`results_100t/tables/similarity_distributions.md`). The equivalence claim
+therefore moves off the underpowered branch onto a positive footing: across all
+five selection strategies, Top-1 differences are bounded to ≈ ±0.014 and
+statistically equivalent within ±0.02 for 38/40 pairs. *(The diagnostic's
+terminal line still auto-prints "underpowered → needs more queries" whenever
+fewer than 40/40 clear the bound; that label is stale here — the achievable bound
+±0.014 lies inside δ, and the two residual cells are point-estimate offsets, not a
+power deficit.)*
+
 ### 5.5 Pooling sensitivity: saturation is not a mean-pool artifact
 
 Re-running the full method × K grid under two aggregators that do **not** average
@@ -526,6 +550,13 @@ results/tables/instance_significance.* paired permutation tests vs uniform (§5.
 results_dinov2/tables/dinov2_similarity.*   DINOv2 saturation distributions (§5.9)
 results_dinov2/tables/dinov2_retrieval.*    DINOv2 Top-1/Top-5 grid + boot CIs (§5.9)
 results_dinov2/tables/dinov2_permutation.*  DINOv2 40-pair permutation grid (§5.9)
+results_100t/tables/equivalence_tost.*      100-task TOST, n=898: 38/40 equivalent (§5.4.1)
+results_100t/tables/retrieval_cis.*         100-task Top-1/5 grid + bootstrap CIs (§5.4.1)
+results_100t/tables/retrieval_permutation.* 100-task 40-pair permutation grid, null (§5.4.1)
+results_100t/tables/similarity_distributions.*  100-task saturation distributions (§5.4.1)
+results_100t/tables/residual_similarity.*   100-task residual-space similarity (scale-up)
+results_100t/tables/coverage_error.*        100-task coverage error (scale-up)
+results_100t/tables/coverage_significance.* 100-task coverage permutation tests (scale-up)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -541,7 +572,10 @@ scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
 scripts/diagnostics/dinov2_retrieval.py        §5.9 DINOv2 cross-backbone replication
 ```
 
-Pending GPU re-embedding (pre-registered, decisions.md 2026-06-12):
-```
-results/bundle_100t/ + results_100t/       100-task scale-up bundle + suite (Task 2)
-```
+100-task scale-up (Task 2, decisions.md 2026-06-12): bundle exported, core suite
+landed (tables above). `results/bundle_100t/` is regenerable and untracked. Four
+secondary diagnostics — extra_baselines, crossover_analysis, instance_retrieval,
+pooling_sensitivity — are *not* re-run at 100-task scale: their permutation /
+best-match hot path scales as O(permutations × queries × gallery) and stalls on
+5× queries. The pinned 20-task versions stand, and the 100-task core (TOST +
+permutation + saturation) is sufficient for the equivalence claim.

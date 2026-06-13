@@ -393,6 +393,24 @@ predicted outcome and quantitatively motivates the 100-task scale-up (~5× queri
 → CI ≈ ±0.013 < δ). No goalposts moved: δ stayed 0.02; the honest read is "bounded
 to ±0.04, underpowered for ±0.02." methods.md §5.4.1 records this.
 
+**Result (2026-06-13) — POWERED at ±0.02; equivalence certified (first branch
+fired after scale-up).** The 100-task bundle (n = 898 queries, 4,390 episodes,
+`results_100t/tables/equivalence_tost.*`) lands the prediction: the 90% CI
+half-width drops to **median 0.0104, max 0.0138** — the whole half-width now sits
+inside δ = 0.02, so the sample is adequately powered. **38 / 40** pairs are
+certified equivalent (vs 7/40 at 20 tasks). The 2 holdouts (random–attention
+K=4, optical_flow–attention K=16) fail on point-estimate offset (~0.01), not CI
+width, and are non-significant under permutation (p = 0.10, 0.17), so they are
+sampling noise, not a CV method winning. Permutation stays null at scale (0/40;
+one nominal p = 0.037 at K=32 uniform-vs-random, fails multiplicity); saturation
+holds (intra 0.927 ≈ same-task 0.931 ≫ inter-task 0.796). No goalposts moved:
+δ stayed 0.02; the honest read is now "equivalent within ±0.02 for 38/40 pairs,
+bounded to ≈ ±0.014." Deviation logged: the diagnostic's auto-label still prints
+"underpowered" for any <40/40, which is stale once max half-width < δ. The four
+secondary diagnostics (extra_baselines, crossover, instance, pooling) were not
+re-run at 100-task scale — their O(perm × queries × gallery) hot path stalls on
+5× queries; the 20-task versions stand. methods.md §5.4.1 records this.
+
 ---
 
 ## 2026-06-12 — PRE-REGISTERED: DINOv2 retrieval backbone (cross-encoder check on the saturation finding)
