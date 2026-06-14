@@ -406,10 +406,13 @@ one nominal p = 0.037 at K=32 uniform-vs-random, fails multiplicity); saturation
 holds (intra 0.927 ≈ same-task 0.931 ≫ inter-task 0.796). No goalposts moved:
 δ stayed 0.02; the honest read is now "equivalent within ±0.02 for 38/40 pairs,
 bounded to ≈ ±0.014." Deviation logged: the diagnostic's auto-label still prints
-"underpowered" for any <40/40, which is stale once max half-width < δ. The four
-secondary diagnostics (extra_baselines, crossover, instance, pooling) were not
-re-run at 100-task scale — their O(perm × queries × gallery) hot path stalls on
-5× queries; the 20-task versions stand. methods.md §5.4.1 records this.
+"underpowered" for any <40/40, which is stale once max half-width < δ. Of the
+secondary diagnostics, crossover_analysis and instance_retrieval re-ran cleanly at
+100-task scale and are committed (instance-level reproduces §5.8: uniform strongest,
+adaptive methods significantly worse at K=4–8); only extra_baselines and
+pooling_sensitivity's best-match mode stall on 5× queries
+(O(perm × queries × gallery) / O(query × gallery × K²)) and were not re-run — their
+20-task versions stand. methods.md §5.4.1 / §5.8 record this.
 
 ---
 

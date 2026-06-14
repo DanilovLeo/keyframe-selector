@@ -425,6 +425,12 @@ instance level it resolves the methods, and — exactly as coverage error does �
 favours uniform coverage over saliency. Content-adaptive selection helps neither
 task retrieval (saturated) nor instance retrieval (where it slightly *hurts* at
 low K); even sampling remains the strongest simple choice on this benchmark.
+This replicates and sharpens at 100-task scale (4,390 episodes;
+`results_100t/tables/instance_retrieval.md`, `instance_significance.md`): Top-1
+spans 0.29–0.57, uniform is again the strongest method, and the adaptive/random
+methods sit significantly *below* uniform across K=4–8 (e.g. optical_flow at K=8
+by 0.097, p < 10⁻³), with the gap closing toward K=32 — the same direction and
+budget dependence on 5× the episodes.
 *(Scope: instance ID re-labels the approved intrinsic-retrieval metric — episode
 identity vs task identity — on the same frozen cached embeddings; no new data,
 model, or robot-state signal. Flagged to the supervisor as an addition rather
@@ -557,6 +563,9 @@ results_100t/tables/similarity_distributions.*  100-task saturation distribution
 results_100t/tables/residual_similarity.*   100-task residual-space similarity (scale-up)
 results_100t/tables/coverage_error.*        100-task coverage error (scale-up)
 results_100t/tables/coverage_significance.* 100-task coverage permutation tests (scale-up)
+results_100t/tables/crossover_analysis.*    100-task K=32 velocity-placement test (scale-up)
+results_100t/tables/instance_retrieval.*    100-task instance-level Top-1/5 grid (§5.8)
+results_100t/tables/instance_significance.* 100-task instance permutation vs uniform (§5.8)
 
 Diagnostics (numpy-only, read the exported bundle; no GPU):
 scripts/diagnostics/bundle.py                  shared loader
@@ -572,10 +581,12 @@ scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
 scripts/diagnostics/dinov2_retrieval.py        §5.9 DINOv2 cross-backbone replication
 ```
 
-100-task scale-up (Task 2, decisions.md 2026-06-12): bundle exported, core suite
-landed (tables above). `results/bundle_100t/` is regenerable and untracked. Four
-secondary diagnostics — extra_baselines, crossover_analysis, instance_retrieval,
-pooling_sensitivity — are *not* re-run at 100-task scale: their permutation /
-best-match hot path scales as O(permutations × queries × gallery) and stalls on
-5× queries. The pinned 20-task versions stand, and the 100-task core (TOST +
-permutation + saturation) is sufficient for the equivalence claim.
+100-task scale-up (Task 2, decisions.md 2026-06-12): bundle exported, suite landed
+(tables above). `results/bundle_100t/` is regenerable and untracked. Seven of the
+nine diagnostics re-ran at 100-task scale; the two exceptions are **extra_baselines**
+and **pooling_sensitivity**'s best-match mode, whose hot paths scale as
+O(permutations × queries × gallery) / O(query × gallery × K²) and stall on 5×
+queries (extra_baselines was killed at ~28 min; pooling best-match at ~10 min).
+Their pinned 20-task versions stand, and the 100-task core (TOST + permutation +
+saturation + instance-level) is sufficient for the equivalence and selection
+claims.
