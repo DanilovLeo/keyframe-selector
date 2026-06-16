@@ -4,8 +4,9 @@
 `docs/methods.md` (§1–§7) and the pre-registered diagnostics in
 `docs/decisions.md` into a claim-driven arc, instead of the current
 method-by-method / metric-by-metric exposition. It re-derives **no numbers**:
-every figure and table referenced already exists in `results/` (the one
-exception, DINOv2, is pre-registered and GPU-blocked and is flagged as pending).
+every figure and table referenced already exists in `results/` (the two
+GPU-dependent extensions — the 100-task scale-up and DINOv2 — have since run;
+their tables live in `results_100t/` and `results_dinov2/`).
 A section-mapping table at the end shows nothing is dropped.
 
 **Arc.** oracle → plateau → mechanism → coverage → (residual / instance / DINOv2)
@@ -55,10 +56,13 @@ argument.
 - Evidence ladder (strongest framing = converging tests, not one p-value):
   - point spread 0.803–0.839, all method×K CIs overlap — `retrieval_cis.*`;
   - **0/40** permutation pairs significant — `retrieval_permutation.*`;
-  - TOST equivalence (§5.4.1): differences **bounded to ±0.04**, 7/40 certified
-    within ±0.02 (6 at K=32) — `equivalence_tost.*`. State honestly: this is the
-    *underpowered* branch; it certifies "indistinguishable, not identical," and
-    motivates the 100-task scale-up (pending GPU).
+  - TOST equivalence (§5.4.1): on the 20-task primary, differences **bounded to
+    ±0.04**, 7/40 certified within ±0.02 (6 at K=32) — the *underpowered* branch.
+    The pre-registered **100-task scale-up has since run** (n=898) and resolves
+    it: the CI half-width drops below δ, **38/40** pairs are certified equivalent
+    within ±0.02, differences bounded to **±0.014** — `equivalence_tost.*`,
+    `results_100t/tables/`. "Indistinguishable" is now a powered, positive
+    equivalence claim, not just absence of evidence.
 - Headline figure: `fig1_accuracy_vs_cr.*`. Tables: `retrieval_summary.*`,
   `retrieval_top1_pivot.*`.
 - Bridge sentence to §4: pushing the budget down to K≈4 costs ~nothing on this
@@ -114,13 +118,16 @@ pre-registered both-ways in `decisions.md`.
     contradict) the coverage story: harder task surfaces selection, and it
     rewards spread, not content-adaptivity.
   - `instance_retrieval.*`, `instance_significance.*`.
-- **6c DINOv2 cross-backbone — PENDING (GPU-blocked), pre-registered**  *(Task 4)*
-  - **Claim (to be filled):** does saturation survive a self-supervised,
-    vision-only encoder? Decision rule fixed both ways in `decisions.md`
-    (2026-06-12): persists ⇒ data-intrinsic, robust across backbones; breaks ⇒
-    CLIP-specific caption/scene artifact, promote DINOv2 to co-primary.
-  - Artifacts when run: `dinov2_similarity.*`, `dinov2_retrieval.*`. Flag clearly
-    as not-yet-run.
+- **6c DINOv2 cross-backbone — saturation PERSISTS, pre-registered**  *(Task 4, was §5.9)*
+  - **Result:** saturation survives a self-supervised, vision-only DINOv2
+    ViT-S/14 encoder — intra **0.840** ≈ same-task **0.823** ≫ inter-task
+    **0.461**, retrieval 0.80–0.84 with overlapping CIs. The pre-registered rule's
+    mechanical verdict was *breaks* on 1/40 uncorrected permutation pairs, but
+    that single pair (uniform vs random, K=8) is a multiple-comparison false
+    positive: it **PERSISTS after correction (0/40 differ)** ⇒ data-intrinsic,
+    robust across backbones, not a CLIP caption/scene artifact. CLIP stays primary.
+  - Artifacts: `results_dinov2/tables/dinov2_{similarity,retrieval,permutation}.*`
+    (methods §5.9).
 
 ## 7. Implication — what to actually compress with  *(synthesis up from §4.3)*
 
@@ -163,8 +170,9 @@ pre-registered both-ways in `decisions.md`.
 - Point to `results/tables/*` (md+csv), `results/plots/*` (pdf+png), and the
   numpy-only `scripts/diagnostics/*` suite that reads the exported bundle
   (`bundle.py`); no-GPU on the diagnostic path; grid read from `bundle_meta.json`.
-- Note the 100-task scale-up bundle and the DINOv2 bundle as the two
-  GPU-dependent extensions, both pre-registered.
+- Note the 100-task scale-up and DINOv2 as the two GPU-dependent extensions, both
+  pre-registered and **now run** (`results_100t/`, `results_dinov2/`); their
+  bundles are regenerable and untracked.
 
 ---
 
@@ -180,7 +188,7 @@ pre-registered both-ways in `decisions.md`.
 | §5.6 coverage error + crossover_analysis (INCONCLUSIVE) | 5. Where selection matters |
 | §5.7 residual gate (FAIL) | 6a Residual probe |
 | §5.8 instance retrieval | 6b Instance probe |
-| Task 4 DINOv2 pre-registration (decisions.md) | 6c DINOv2 (pending) |
+| Task 4 DINOv2 (decisions.md, methods §5.9) | 6c DINOv2 (PERSISTS) |
 | §4.3 synthesis (forward-looking half) | 7. Implication + frame_diff cost argument |
 | §6 Threats to validity | 8. Threats to validity |
 | §7 Artifacts | 9. Artifacts & reproducibility |
