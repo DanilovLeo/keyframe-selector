@@ -551,6 +551,7 @@ results/tables/coverage_error.*        coverage error (§5.6)
 results/tables/coverage_significance.* paired permutation tests on coverage (§5.6)
 results/tables/residual_similarity.*   residual-space similarity gate, FAIL (§5.7)
 results/plots/fig_residual_similarity.*  residual vs raw similarity distributions (§5.7)
+results/plots/fig_qualitative_panel.*  per-method keyframe selections, one episode (§5.6)
 results/tables/instance_retrieval.*    instance-level Top-1/Top-5 grid (§5.8)
 results/tables/instance_significance.* paired permutation tests vs uniform (§5.8)
 results_dinov2/tables/dinov2_similarity.*   DINOv2 saturation distributions (§5.9)
@@ -579,6 +580,7 @@ scripts/diagnostics/residual_similarity.py     §5.7 (pre-registered gate, FAIL)
 scripts/diagnostics/crossover_analysis.py      K=32 coverage crossover (decisions.md only)
 scripts/diagnostics/instance_retrieval.py      §5.8 instance-level retrieval
 scripts/diagnostics/dinov2_retrieval.py        §5.9 DINOv2 cross-backbone replication
+scripts/diagnostics/qualitative_panel.py       per-method keyframe panel, one episode (§5.6 figure)
 ```
 
 100-task scale-up (Task 2, decisions.md 2026-06-12): bundle exported, suite landed

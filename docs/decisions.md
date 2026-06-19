@@ -522,6 +522,35 @@ driver (`results_dinov2/tables/dinov2_{similarity,retrieval,permutation}.{md,csv
 
 ---
 
+## 2026-06-14 — Qualitative keyframe panel (illustration, not a new result)
+
+`scripts/diagnostics/qualitative_panel.py` renders, for one episode, the frames each
+extractor selects at a fixed budget K as a method × slot image grid plus a rug-plot
+timeline of the selected indices over 0..T. Output: `results/plots/
+fig_qualitative_panel.{pdf,png}`.
+
+**Scope.** Trivially in scope: it runs the existing extractors on already-decodable
+pixels and draws the indices they return — no new metric, no new data, no model fit,
+no robot-state signal. Pure illustration.
+
+**Choice of example (honest).** The committed figure is **episode 15185** (T = 56,
+"open microwave") at **K = 4**, picked as a representative *long* clip at a *low*
+budget so the methods have placement freedom. Note the spacing constraint: the
+extractors enforce `min_dist = 5`, so at K = 8 on a short clip (e.g. T = 41) eight
+anchors nearly fill the timeline and *every* method collapses to near-uniform —
+hiding the contrast. Low K on a longer clip is where the method behaviours separate.
+The episode is a representative example, not selected to favour a result; the caption
+says so.
+
+**What it shows.** uniform spreads anchors evenly (t = 0,18,36,55); the
+content-adaptive methods place them by their signal and so cover the timeline
+unevenly — optical_flow front-loads onto the low-motion approach (t = 9,26),
+frame_diff bunches onto the high-change opening (t = 39,44,55) and skips the static
+start. This is the §5.6 coverage-error mechanism made visible. Regenerate for any
+episode via `--candidates` then `--episode IDX`.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)
