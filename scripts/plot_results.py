@@ -340,6 +340,24 @@ def _add_k_axis(ax, curves: dict) -> None:
     secax.tick_params(axis="x", length=3)
 
 
+def _add_top1_inset(ax, curves: dict) -> None:
+    """Inset magnification of the Top-1 cluster. At full y-scale the curves and
+    the random baseline's ±1 std band are invisibly tight; the zoom shows every
+    method sitting inside random's seed-to-seed envelope — i.e. no selection
+    strategy separates from chance-level frame choice. Drawn as an inset rather
+    than by rescaling the main axis, which would magnify ~0.01 of noise into
+    apparent separation."""
+    axins = ax.inset_axes([0.12, 0.30, 0.46, 0.40])
+    _plot_metric_curves(axins, curves, "top_1", ceiling=None)
+    axins.set_xlim(0.15, 1.0)
+    axins.set_ylim(0.78, 0.86)
+    axins.set_xticks([])
+    axins.tick_params(axis="y", labelsize=7)
+    axins.set_title("zoom — Top-1 with random ±1 std band", fontsize=7, pad=2)
+    axins.grid(True, alpha=0.3)
+    ax.indicate_inset_zoom(axins, edgecolor="0.5", alpha=0.6)
+
+
 def fig_accuracy_vs_cr(results: dict, out_dir: Path) -> None:
     curves = group_curves(results)
     ceiling = find_ceiling(results)
@@ -358,6 +376,7 @@ def fig_accuracy_vs_cr(results: dict, out_dir: Path) -> None:
         ax.set_ylim(bottom=0, top=1.05)
         _add_k_axis(ax, curves)
 
+    _add_top1_inset(axes[0], curves)        # magnified view: methods vs random ±1 std
     axes[0].legend(loc="lower right", fontsize=8)
     fig.tight_layout()
     _save(fig, out_dir, "fig1_accuracy_vs_cr")
