@@ -353,7 +353,6 @@ def _add_top1_inset(ax, curves: dict) -> None:
     axins.set_ylim(0.78, 0.86)
     axins.set_xticks([])
     axins.tick_params(axis="y", labelsize=7)
-    axins.set_title("zoom — Top-1 with random ±1 std band", fontsize=7, pad=2)
     axins.grid(True, alpha=0.3)
     ax.indicate_inset_zoom(axins, edgecolor="0.5", alpha=0.6)
 
@@ -377,8 +376,11 @@ def fig_accuracy_vs_cr(results: dict, out_dir: Path) -> None:
         _add_k_axis(ax, curves)
 
     _add_top1_inset(axes[0], curves)        # magnified view: methods vs random ±1 std
-    axes[0].legend(loc="lower right", fontsize=8)
     fig.tight_layout()
+    # one shared horizontal legend under both panels — frees the panel interiors
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=len(labels),
+               fontsize=9, bbox_to_anchor=(0.5, -0.04), frameon=False)
     _save(fig, out_dir, "fig1_accuracy_vs_cr")
 
 
