@@ -296,7 +296,6 @@ def _plot_metric_curves(ax, curves: dict, metric: str, ceiling=None) -> None:
         vals = [e.get(metric) for _, e in pts]
         if any(v is None for v in vals):
             continue  # method didn't record this metric
-        ks  = [k for k, _ in pts]
         crs = [e["mean_cr"] for _, e in pts]
         color, marker, label = _style(method, idx)
         linestyle = "--" if method == "random" else "-"
@@ -311,14 +310,34 @@ def _plot_metric_curves(ax, curves: dict, metric: str, ceiling=None) -> None:
                             [v + s for v, s in zip(vals, stds)],
                             color=color, alpha=0.15)
 
-        # Annotate each point with its K.
-        for k, cr, v in zip(ks, crs, vals):
-            ax.annotate(f"K={k}", (cr, v), textcoords="offset points",
-                        xytext=(4, 4), fontsize=7, color=color)
-
     if ceiling is not None and ceiling.get(metric) is not None:
         ax.axhline(ceiling[metric], color="#444444", linestyle=":", linewidth=1.5,
                    label="All frames (ceiling)")
+
+
+def _k_to_cr(curves: dict) -> dict:
+    """Mean compression ratio per K (identical across methods; averaged
+    defensively), returned K-sorted."""
+    by_k: dict = {}
+    for pts in curves.values():
+        for k, e in pts:
+            cr = e.get("mean_cr")
+            if cr is not None:
+                by_k.setdefault(k, []).append(cr)
+    return {k: sum(v) / len(v) for k, v in sorted(by_k.items())}
+
+
+def _add_k_axis(ax, curves: dict) -> None:
+    """Label the keyframe budget K on a secondary top axis, one tick per K at
+    its compression ratio. Replaces per-point K annotations, which stacked five
+    near-identical labels at each position (all methods overlap)."""
+    k_cr = _k_to_cr(curves)
+    secax = ax.twiny()
+    secax.set_xlim(ax.get_xlim())
+    secax.set_xticks(list(k_cr.values()))
+    secax.set_xticklabels([str(k) for k in k_cr], fontsize=8)
+    secax.set_xlabel("Keyframe budget  K", fontsize=9)
+    secax.tick_params(axis="x", length=3)
 
 
 def fig_accuracy_vs_cr(results: dict, out_dir: Path) -> None:
@@ -335,8 +354,9 @@ def fig_accuracy_vs_cr(results: dict, out_dir: Path) -> None:
         _plot_metric_curves(ax, curves, metric, ceiling)
         ax.set_xlabel("Compression Ratio (keyframes / T)")
         ax.set_ylabel(ylabel)
-        ax.set_xlim(left=0)
+        ax.set_xlim(0, 1.04)
         ax.set_ylim(bottom=0, top=1.05)
+        _add_k_axis(ax, curves)
 
     axes[0].legend(loc="lower right", fontsize=8)
     fig.tight_layout()
@@ -358,7 +378,8 @@ def fig_clipsim_vs_cr(results: dict, out_dir: Path) -> None:
 
     ax.set_xlabel("Compression Ratio (keyframes / T)")
     ax.set_ylabel("CLIP cosine similarity (image vs task text)")
-    ax.set_xlim(left=0)
+    ax.set_xlim(0, 1.04)
+    _add_k_axis(ax, curves)
     ax.legend(fontsize=8)
     fig.tight_layout()
     _save(fig, out_dir, "fig2_clipsim_vs_cr")
