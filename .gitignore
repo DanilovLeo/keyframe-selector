@@ -20,3 +20,6 @@ results/bundle*/
 
 # Result/transfer archives (kf_results.tgz, task4_dinov2.tgz, ...); re-creatable.
 *.tgz
+
+# Local writing aid (thesis structure -> source map); kept on disk, not tracked.
+docs/paper_sourcemap.md
