@@ -519,6 +519,13 @@ driver (`results_dinov2/tables/dinov2_{similarity,retrieval,permutation}.{md,csv
   the retrieval and permutation tables **byte-identically** and the similarity
   percentiles to ~1e-6 (cross-numpy float rounding). The pod's run is authoritative
   and committed; no GPU is needed to re-derive §5.9.
+- **Post-hoc TOST (2026-06-14).** Ran the equivalence test on the local DINOv2
+  bundle (δ = 0.02, 90% CI, n = 178; `results_dinov2/tables/equivalence_tost.*`):
+  **14/40** pairs equivalent within ±0.02 (all at K = 16/32), **none** certified
+  different; underpowered (CI half-width median 0.022 / max 0.036), like the CLIP
+  20-task TOST (7/40). Consistent with the corrected 0/40 permutation result; DINOv2
+  yields more equivalent pairs than CLIP at equal n due to slightly tighter CIs.
+  methods §5.9 records it.
 
 ---
 

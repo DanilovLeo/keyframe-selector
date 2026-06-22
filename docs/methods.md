@@ -458,6 +458,13 @@ already drives the attention extractor — no new dependency, no new data.
 - **Retrieval stays selection-invariant.** All 20 method × K Top-1 cells lie in
   **0.798–0.837**, every bootstrap 95% CI overlapping every other — the §5.4
   picture, unchanged.
+- **Equivalence holds too (post-hoc TOST).** A two-one-sided-test on the DINOv2
+  grid (δ = 0.02, 90% CI, n = 178; `results_dinov2/tables/equivalence_tost.*`)
+  certifies **14/40** pairs equivalent within ±0.02 — all at K = 16/32, where Top-1
+  saturates — and certifies *none* different. As with the 20-task CLIP TOST (§5.4.1)
+  the sample is underpowered for ±0.02 (CI half-width median 0.022, max 0.036), so
+  the honest read is "indistinguishable, bounded to ≈ ±0.036." DINOv2's slightly
+  tighter CIs yield more equivalent pairs than CLIP's 7/40 at the same n.
 - **One difference, and it strengthens the mechanism.** The inter-task gap is
   **~4× wider** under DINOv2 (same − inter = **0.361** vs CLIP's 0.094): a
   vision-only encoder separates tasks far more than CLIP (no shared-caption pull).
@@ -557,6 +564,7 @@ results/tables/instance_significance.* paired permutation tests vs uniform (§5.
 results_dinov2/tables/dinov2_similarity.*   DINOv2 saturation distributions (§5.9)
 results_dinov2/tables/dinov2_retrieval.*    DINOv2 Top-1/Top-5 grid + boot CIs (§5.9)
 results_dinov2/tables/dinov2_permutation.*  DINOv2 40-pair permutation grid (§5.9)
+results_dinov2/tables/equivalence_tost.*    DINOv2 TOST equivalence, δ=0.02 — 14/40 (§5.9)
 results_100t/tables/equivalence_tost.*      100-task TOST, n=898: 38/40 equivalent (§5.4.1)
 results_100t/tables/retrieval_cis.*         100-task Top-1/5 grid + bootstrap CIs (§5.4.1)
 results_100t/tables/retrieval_permutation.* 100-task 40-pair permutation grid, null (§5.4.1)
