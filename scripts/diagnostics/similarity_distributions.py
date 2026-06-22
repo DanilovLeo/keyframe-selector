@@ -131,8 +131,7 @@ def main() -> None:
             ax.axvline(np.median(v), color=color, lw=1.5, ls="--")
     ax.set_xlabel("cosine similarity")
     ax.set_ylabel("density")
-    ax.set_title("CLIP embedding similarity: within-episode vs across episodes\n"
-                 "(intra-episode tightness >> task gap  =>  selection-invariant retrieval)")
+    ax.set_title(f"CLIP embedding similarity ({len(set(b.ep_task.values()))}-task)")
     ax.legend(fontsize=8, loc="upper left")
     fig.tight_layout()
     for ext in ("pdf", "png"):
