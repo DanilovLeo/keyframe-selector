@@ -25,7 +25,7 @@ frame 0 and frame T-1.
 | **Uniform** | evenly spaced indices | — (baseline) |
 | **Random** | random indices, ≥3 seeds (matched-N control) | — (baseline) |
 | **Optical flow** | RAFT motion magnitude | `raft_small` (torchvision) |
-| **Attention saliency** | ViT attention maps | DINOv2 ViT-S/14 (timm) |
+| **Embedding-change** | DINOv2 [CLS] cosine distance between consecutive frames | DINOv2 ViT-S/14 (timm) |
 | **Frame difference** | mean absolute pixel change | pure NumPy |
 
 ## Evaluation

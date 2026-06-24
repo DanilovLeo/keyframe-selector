@@ -31,8 +31,8 @@ All extractors implement `src/extractors/base.py::KeyframeExtractor.extract(demo
 | **uniform** | evenly spaced indices | baseline |
 | **random** | uniform random indices | matched-N control; ≥ 3 seeds (42, 123, 456), reported mean ± std; endpoints forced (slight upward bias, intentional) |
 | **optical_flow** | RAFT-Small flow magnitude per frame-pair | local minima of motion → "settled" frames |
-| **attention** | DINOv2 ViT-S/14 CLS-token attention dispersion | salient-frame peaks |
-| **frame_diff** | pixel mean-absolute-difference | lightweight pixel-change baseline |
+| **attention** | DINOv2 ViT-S/14 [CLS]-embedding change (cosine distance between consecutive frames) | local maxima |
+| **frame_diff** | pixel mean-absolute-difference | local maxima (largest pixel change) |
 
 Two K regimes are used:
 
@@ -105,7 +105,7 @@ Two facts hold simultaneously and are both important:
 
 - Retrieval **works** — ~0.80 Top-1 and ~0.95 Top-5 are far above the 1/20 =
   0.05 chance line.
-- Retrieval is **blind to which frames are kept** — motion-aware, saliency-aware,
+- Retrieval is **blind to which frames are kept** — motion-aware, content-based,
   and random selection are statistically indistinguishable.
 
 **Mechanism.** Task identity in BridgeData v2 is *scene-dominated*: the objects,
@@ -353,7 +353,7 @@ episodes, `results/tables/coverage_significance.md`) make **every** method-vs-un
 gap significant at p < 0.05 — consecutive-block and optical_flow significantly
 *worse* at every K, attention/frame_diff significantly *better* than uniform at
 K=32. The honest reading is that adaptive selection **trades episode coverage for
-saliency**: a metric sensitive to *which* frames are kept distinguishes the
+content adaptivity**: a metric sensitive to *which* frames are kept distinguishes the
 methods decisively (0/40 in retrieval vs all-significant here), and it favours
 even spreading at tight budgets, content-adaptive anchors at generous ones. This
 is the selection-sensitive companion the retrieval metric structurally cannot be.
@@ -422,7 +422,7 @@ same episode's selected keyframes in the second half.
 
 So the order-invariant mean-pool is not blind to selection *per se*: at the
 instance level it resolves the methods, and — exactly as coverage error does — it
-favours uniform coverage over saliency. Content-adaptive selection helps neither
+favours uniform coverage over content adaptivity. Content-adaptive selection helps neither
 task retrieval (saturated) nor instance retrieval (where it slightly *hurts* at
 low K); even sampling remains the strongest simple choice on this benchmark.
 This replicates and sharpens at 100-task scale (4,390 episodes;
