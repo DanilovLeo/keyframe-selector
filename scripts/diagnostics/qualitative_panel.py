@@ -58,6 +58,17 @@ def build_methods(k: int, seed: int):
     ]
 
 
+# Display names for figure labels (config keys above are unchanged). "random" is
+# a single seed here, not the 3-seed mean of fig1-3, so it carries no ± std tag.
+DISPLAY = {
+    "uniform":      "uniform",
+    "random":       "random",
+    "optical_flow": "optical-flow",
+    "attention":    "embedding-change",
+    "frame_diff":   "frame-difference",
+}
+
+
 def list_candidates(loader, min_len: int, max_len: int, min_demos: int):
     """Mid-length episodes (cached metadata, no decode) for picking a clear clip."""
     rows = []
@@ -97,7 +108,8 @@ def render(frames: np.ndarray, picks: dict, task: str, k: int, out_dir: str) -> 
             for sp in ax.spines.values():
                 sp.set_visible(False)
             if c == 0:
-                ax.text(-0.2, 0.5, m, transform=ax.transAxes, ha="right", va="center",
+                ax.text(-0.2, 0.5, DISPLAY.get(m, m), transform=ax.transAxes,
+                        ha="right", va="center",
                         fontsize=11, fontweight="bold", color=colors[r])
 
     # rug-plot timeline: where on 0..T each method placed its anchors
@@ -108,7 +120,7 @@ def render(frames: np.ndarray, picks: dict, task: str, k: int, out_dir: str) -> 
     axt.set_xlim(-0.5, T - 0.5)
     axt.set_ylim(-0.5, M - 0.5)
     axt.set_yticks(range(M))
-    axt.set_yticklabels(methods[::-1], fontsize=9)
+    axt.set_yticklabels([DISPLAY.get(m, m) for m in methods][::-1], fontsize=9)
     axt.set_xlabel(f"frame index t   (T = {T})", fontsize=10)
     axt.set_title("temporal distribution of selected keyframes", fontsize=10)
     for sp in ("top", "right", "left"):
