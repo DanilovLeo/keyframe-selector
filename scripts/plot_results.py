@@ -70,11 +70,11 @@ COLORS = {
     "frame_diff":   "#d62728",   # red
 }
 LABELS = {
-    "uniform":      "Uniform",
-    "random":       "Random (mean ± std, 3 seeds)",
-    "optical_flow": "OpticalFlow (RAFT-Small)",
-    "attention":    "Attention (DINOv2-S)",
-    "frame_diff":   "FrameDiff (pixel MAD)",
+    "uniform":      "uniform",
+    "random":       "random (mean ± std, 3 seeds)",
+    "optical_flow": "optical-flow (RAFT-Small)",
+    "attention":    "embedding-change (DINOv2-S)",
+    "frame_diff":   "frame-difference (pixel MAD)",
 }
 MARKERS = {
     "uniform":      "o",
