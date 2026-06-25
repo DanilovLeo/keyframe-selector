@@ -558,6 +558,20 @@ episode via `--candidates` then `--episode IDX`.
 
 ---
 
+## 2026-06-25 — Removed two process-only docs pre-submission
+
+`docs/report_outline.md` (the narrative-restructure plan) and
+`docs/supervisor_signoff_request.md` (an unsent sign-off draft) were removed as
+process/scaffolding artifacts before thesis submission; both remain recoverable in
+git history. Per the append-only convention this entry *records* the removal
+rather than editing earlier entries: the residual-gate reference above to
+`docs/supervisor_signoff_request.md` (item 4) is therefore historical — the
+residual result was negative, so the sign-off gate it described was moot and no
+positive result was ever promoted. Methods, decisions, code, configs, and all
+result artifacts are unchanged.
+
+---
+
 ## Scope reminder
 
 This project compresses a **single camera view** (`observation.images.image_0`)
