@@ -98,7 +98,9 @@ python scripts/export_eval_bundle.py \
     --root ~/.cache/lerobot --embed_cache ~/.cache/clip_embeds --out_dir results/bundle
 
 # --- Phase 2 (CPU only): the §5 diagnostic suite, off the cached bundle ---
-for d in similarity_distributions extra_baselines stats pooling_sensitivity coverage_error; do
+# (full suite in scripts/diagnostics/; bundle.py is a shared library, not run directly)
+for d in similarity_distributions extra_baselines stats pooling_sensitivity coverage_error \
+         residual_similarity crossover_analysis instance_retrieval equivalence; do
     python scripts/diagnostics/$d.py --bundle results/bundle --out_dir results
 done
 
@@ -111,12 +113,34 @@ The exported bundle (`results/bundle/`, ~150–250 MB) is gitignored and re-crea
 by the export step; the diagnostic output tables under `results/tables/` are
 committed.
 
+### Extensions: 100-task scale-up & DINOv2 cross-backbone
+
+Two pre-registered robustness extensions (logged in `docs/decisions.md`), each a
+GPU re-export plus the CPU suite into a parallel results directory:
+
+```bash
+# 100-task scale-up (Task 2) -> results_100t/   (extra_baselines + pooling_sensitivity
+# best-match do not scale to 100 tasks; see methods.md §7)
+python scripts/export_eval_bundle.py --max_tasks 100 \
+    --out_dir results/bundle_100t --allow_embed
+for d in similarity_distributions stats equivalence coverage_error \
+         residual_similarity crossover_analysis instance_retrieval; do
+    python scripts/diagnostics/$d.py --bundle results/bundle_100t --out_dir results_100t
+done
+
+# DINOv2 cross-backbone (Task 4) -> results_dinov2/
+python scripts/export_eval_bundle.py --backbone dinov2 \
+    --out_dir results/bundle_dinov2 --allow_embed
+python scripts/diagnostics/dinov2_retrieval.py --bundle results/bundle_dinov2 --out_dir results_dinov2
+python scripts/diagnostics/equivalence.py      --bundle results/bundle_dinov2 --out_dir results_dinov2
+```
+
 ## Project layout
 
 ```
 src/
   extractors/   KeyframeExtractor interface + uniform, random, optical_flow,
-                attention (DINOv2), frame_diff
+                attention.py ("embedding-change" in the thesis), frame_diff
   data/         BridgeData V2 loader (per-episode streaming) + Demo types
   evaluation/   retrieval accuracy, CLIP similarity, pooled embeddings
 scripts/        preflight_check, run_retrieval_eval, run_consistency,
@@ -124,7 +148,9 @@ scripts/        preflight_check, run_retrieval_eval, run_consistency,
   diagnostics/  CPU-only suite reading the exported bundle (methods.md §5)
 configs/        models.yaml (pinned CLIP / DINOv2 / RAFT identifiers)
 docs/           decisions.md (pinned decisions), methods.md (methods & results)
-results/        JSON metrics, tables, and plots (committed)
+results/        20-task primary: JSON metrics, tables, plots (committed)
+results_100t/   100-task scale-up tables (committed; bundle regenerable)
+results_dinov2/ DINOv2 cross-backbone tables (committed; bundle regenerable)
 archive/        quarantined drift-era code and docs — read-only, do not import
 ```
 
